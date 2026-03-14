@@ -1,4 +1,5 @@
-import { FileText, FileType, BookOpen, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { FileText, FileType, BookOpen, Video, ExternalLink, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import type { SearchResult } from '../../types'
 
 interface ResultCardProps {
@@ -10,7 +11,14 @@ interface ResultCardProps {
 function FileIcon({ type }: { type: SearchResult['fileType'] }) {
   if (type === 'pdf') return <FileType size={13} color="#E85C4A" />
   if (type === 'epub') return <BookOpen size={13} color="#7C9E87" />
+  if (type === 'mp4') return <Video size={13} color="#B07CC6" />
   return <FileText size={13} color="#A8C4D4" />
+}
+
+function formatTimestamp(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 function boldMatchedTerms(text: string, query: string): React.ReactNode {
@@ -40,6 +48,8 @@ function boldMatchedTerms(text: string, query: string): React.ReactNode {
 
 export default function ResultCard({ result, rank, onOpen }: ResultCardProps) {
   const pct = Math.round(result.relevanceScore * 100)
+  const [expanded, setExpanded] = useState(false)
+  const isLong = result.chunkText.length > 150
 
   return (
     <div
@@ -85,7 +95,25 @@ export default function ResultCard({ result, rank, onOpen }: ResultCardProps) {
         >
           {result.fileName}
         </span>
-        {result.pageNumber && (
+        {result.fileType === 'mp4' && result.startTime != null ? (
+          <span
+            style={{
+              fontSize: 10,
+              color: 'var(--color-text-muted)',
+              background: 'var(--color-bg-panel)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '1px 6px',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 3,
+            }}
+          >
+            <Clock size={9} />
+            {formatTimestamp(result.startTime)}
+          </span>
+        ) : result.pageNumber ? (
           <span
             style={{
               fontSize: 10,
@@ -99,7 +127,7 @@ export default function ResultCard({ result, rank, onOpen }: ResultCardProps) {
           >
             p. {result.pageNumber}
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Score bar */}
@@ -156,14 +184,40 @@ export default function ResultCard({ result, rank, onOpen }: ResultCardProps) {
           fontSize: 12,
           color: 'var(--color-text-secondary)',
           lineHeight: 1.6,
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
+          ...(expanded
+            ? {}
+            : {
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical' as const,
+                overflow: 'hidden',
+              }),
         }}
       >
         {boldMatchedTerms(result.chunkText, '')}
       </div>
+
+      {isLong && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            fontSize: 11,
+            fontWeight: 500,
+            color: 'var(--color-accent-primary)',
+            fontFamily: 'Inter, sans-serif',
+          }}
+        >
+          {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
 
       {/* Open button */}
       <button

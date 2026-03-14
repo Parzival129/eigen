@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     embedding_max_input_tokens: int = 8000
     upload_dir: str = "./uploads"
     log_level: str = "INFO"
+    vision_model: str = "gpt-4o-mini"
 
     @property
     def allowed_origins_list(self) -> list[str]:

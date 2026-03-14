@@ -1,4 +1,4 @@
-export type FileType = 'pdf' | 'txt' | 'epub'
+export type FileType = 'pdf' | 'txt' | 'epub' | 'mp4'
 
 export type FileStatus = 'uploading' | 'indexed' | 'error'
 
@@ -42,6 +42,8 @@ export interface SearchResult {
   chunkText: string
   pageNumber?: number
   charOffset?: number
+  startTime?: number
+  endTime?: number
 }
 
 export interface ViewerState {
@@ -57,6 +59,7 @@ export interface ViewerState {
   isFullscreen: boolean
   showAnnotationsPanel: boolean
   txtFontSize: number
+  seekTime?: number
 }
 
 export interface SearchState {

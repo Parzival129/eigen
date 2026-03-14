@@ -1,4 +1,4 @@
-import type { SearchResult } from '../types'
+import type { FileType, SearchResult } from '../types'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -26,6 +26,8 @@ interface ChunkResult {
   score: number
   chunk_text: string
   page_number?: number
+  start_time?: number
+  end_time?: number
 }
 
 interface SearchResponse {
@@ -94,10 +96,12 @@ export async function searchDocuments(
     id: r.chunk_id,
     fileId: r.file_id,
     fileName: r.file_name,
-    fileType: r.file_type as 'pdf' | 'txt' | 'epub',
+    fileType: r.file_type as FileType,
     relevanceScore: r.score,
     chunkText: r.chunk_text,
     pageNumber: r.page_number,
+    startTime: r.start_time,
+    endTime: r.end_time,
   }))
 }
 

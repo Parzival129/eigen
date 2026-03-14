@@ -4,6 +4,7 @@ import FileManager from './components/sidebar/FileManager'
 import PDFViewer from './components/viewer/PDFViewer'
 import EPUBViewer from './components/viewer/EPUBViewer'
 import TXTViewer from './components/viewer/TXTViewer'
+import VideoViewer from './components/viewer/VideoViewer'
 import SearchBar from './components/search/SearchBar'
 import ResultsList from './components/search/ResultsList'
 import { useAnnotations } from './hooks/useAnnotations'
@@ -60,10 +61,13 @@ export default function App() {
   const handleFilesAdded = useCallback(async (newFiles: File[]) => {
     for (const f of newFiles) {
       const tempId = crypto.randomUUID()
-      const fileType = f.name.toLowerCase().endsWith('.pdf')
+      const nameLower = f.name.toLowerCase()
+      const fileType = nameLower.endsWith('.pdf')
         ? 'pdf' as const
-        : f.name.toLowerCase().endsWith('.epub')
+        : nameLower.endsWith('.epub')
         ? 'epub' as const
+        : nameLower.endsWith('.mp4')
+        ? 'mp4' as const
         : 'txt' as const
 
       const tempFile: UploadedFile = {
@@ -152,7 +156,9 @@ export default function App() {
 
   const handleOpenResult = useCallback(
     (result: SearchResult) => {
-      viewer.setActiveFile(result.fileId)
+      const extra: Partial<import('./types').ViewerState> = {}
+      if (result.startTime != null) extra.seekTime = result.startTime
+      viewer.setActiveFile(result.fileId, extra)
       setActiveSearchHighlight(result)
       if (result.pageNumber) viewer.setPage(result.pageNumber)
     },
@@ -258,6 +264,15 @@ export default function App() {
                 onRemoveAnnotation={annHook.removeAnnotation}
                 onToggleFullscreen={viewer.toggleFullscreen}
                 onToggleAnnotationsPanel={viewer.toggleAnnotationsPanel}
+              />
+            ) : activeFile.type === 'mp4' ? (
+              <VideoViewer
+                key={activeFile.id}
+                file={activeFile.file}
+                fileId={activeFile.id}
+                viewerState={viewer.state}
+                onStateUpdate={viewer.update}
+                onToggleFullscreen={viewer.toggleFullscreen}
               />
             ) : (
               <TXTViewer
@@ -383,7 +398,7 @@ function EmptyViewer({ hasFiles }: { hasFiles: boolean }) {
         <div style={{ fontSize: 13, color: 'var(--color-text-muted)', maxWidth: 260 }}>
           {hasFiles
             ? 'Click a file in the left panel to open it here.'
-            : 'Upload a PDF, TXT, or EPUB file to get started with semantic search.'}
+            : 'Upload a PDF, TXT, EPUB, or MP4 file to get started with semantic search.'}
         </div>
       </div>
     </div>

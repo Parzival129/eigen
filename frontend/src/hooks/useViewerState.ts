@@ -14,14 +14,16 @@ const DEFAULT_STATE: ViewerState = {
   isFullscreen: false,
   showAnnotationsPanel: false,
   txtFontSize: 16,
+  seekTime: undefined,
 }
 
 export function useViewerState() {
   const [state, setState] = useState<ViewerState>(DEFAULT_STATE)
 
-  const setActiveFile = useCallback((fileId: string | null) => {
+  const setActiveFile = useCallback((fileId: string | null, extra?: Partial<ViewerState>) => {
     setState((_prev) => ({
       ...DEFAULT_STATE,
+      ...extra,
       activeFileId: fileId,
     }))
   }, [])

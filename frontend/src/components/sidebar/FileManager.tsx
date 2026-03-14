@@ -26,7 +26,7 @@ export default function FileManager({
       e.preventDefault()
       setIsDragging(false)
       const dropped = Array.from(e.dataTransfer.files).filter((f) =>
-        ['.pdf', '.txt', '.epub'].some((ext) => f.name.toLowerCase().endsWith(ext))
+        ['.pdf', '.txt', '.epub', '.mp4'].some((ext) => f.name.toLowerCase().endsWith(ext))
       )
       if (dropped.length) onFilesAdded(dropped)
     },
@@ -127,7 +127,7 @@ export default function FileManager({
             Drop files here
           </div>
           <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
-            PDF, TXT, EPUB supported
+            PDF, TXT, EPUB, MP4 supported
           </div>
         </div>
         <button
@@ -155,7 +155,7 @@ export default function FileManager({
       <input
         ref={inputRef}
         type="file"
-        accept=".pdf,.txt,.epub"
+        accept=".pdf,.txt,.epub,.mp4"
         multiple
         style={{ display: 'none' }}
         onChange={handleFileInput}
