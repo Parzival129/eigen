@@ -77,6 +77,17 @@ export interface SearchState {
   hasSearched: boolean
 }
 
+export interface QuizQuestion {
+  question: string
+  options: string[]
+  correct_index: number
+  explanation: string
+}
+
+export interface QuizData {
+  questions: QuizQuestion[]
+}
+
 export interface AppState {
   files: UploadedFile[]
   viewer: ViewerState
