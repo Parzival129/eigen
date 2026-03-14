@@ -1,0 +1,169 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+@import "tailwindcss";
+
+/* ── Light mode tokens ── */
+:root {
+  --color-bg-base:        #F7F3EE;
+  --color-bg-panel:       #FEFCF8;
+  --color-bg-card:        #F0EBE3;
+  --color-bg-toolbar:     #EDE8E0;
+  --color-border:         #DDD7CE;
+
+  --color-accent-primary: #7C9E87;
+  --color-accent-soft:    #B8D4BE;
+  --color-accent-warn:    #E8C97A;
+  --color-accent-info:    #A8C4D4;
+
+  --color-text-primary:   #2C2825;
+  --color-text-secondary: #6B635A;
+  --color-text-muted:     #9E9089;
+
+  --color-shadow:         rgba(100, 85, 70, 0.08);
+
+  --radius-sm:  6px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  24px;
+}
+
+/* ── Dark mode overrides ── */
+.dark {
+  --color-bg-base:        #1A1714;
+  --color-bg-panel:       #211E1B;
+  --color-bg-card:        #2A2622;
+  --color-bg-toolbar:     #252220;
+  --color-border:         #3A3530;
+  --color-text-primary:   #F0EBE3;
+  --color-text-secondary: #A09880;
+  --color-text-muted:     #6B6358;
+  --color-shadow:         rgba(0, 0, 0, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* ── Shimmer animation for skeleton loaders ── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-card) 25%,
+    var(--color-border) 50%,
+    var(--color-bg-card) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ── PDF viewer page container ── */
+.pdf-page-wrapper {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  margin: 0 auto 16px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Highlight overlay colors ── */
+.highlight-user {
+  background: rgba(232, 201, 122, 0.45);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.highlight-search {
+  background: rgba(124, 158, 135, 0.40);
+  border-radius: 2px;
+}
+
+/* ── Selection popover ── */
+.selection-popover {
+  position: fixed;
+  z-index: 1000;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px var(--color-shadow);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.selection-popover button {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+}
+.selection-popover button:hover {
+  background: var(--color-bg-card);
+}
+
+/* ── Prose viewer ── */
+.prose-viewer {
+  font-family: 'Lora', serif;
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--color-text-primary);
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* ── Resizable divider ── */
+.panel-divider {
+  width: 4px;
+  background: var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+.panel-divider:hover,
+.panel-divider.dragging {
+  background: var(--color-accent-soft);
+}
