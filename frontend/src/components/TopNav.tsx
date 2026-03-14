@@ -1,4 +1,4 @@
-import { Moon, Sun, RotateCcw, Sigma } from 'lucide-react'
+import { Moon, Sun, RotateCcw } from 'lucide-react'
 
 interface TopNavProps {
   isDarkMode: boolean
@@ -27,17 +27,28 @@ export default function TopNav({ isDarkMode, onToggleDarkMode, onNewSession }: T
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
         <div
           style={{
-            width: 32,
-            height: 32,
-            background: 'var(--color-accent-primary)',
-            borderRadius: 'var(--radius-sm)',
+            width: 40,
+            height: 40,
+            borderRadius: 8,
+            flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0,
+            background: '#7b8c6e',
+            userSelect: 'none',
           }}
         >
-          <Sigma size={18} color="white" strokeWidth={2.2} />
+          <span style={{
+            color: '#ffffff',
+            fontSize: 20,
+            fontFamily: 'sans-serif',
+            lineHeight: '1',
+            display: 'block',
+            margin: 0,
+            padding: 0,
+          }}>
+            [λ]
+          </span>
         </div>
         <span
           style={{
@@ -48,20 +59,6 @@ export default function TopNav({ isDarkMode, onToggleDarkMode, onNewSession }: T
           }}
         >
           Eigen
-        </span>
-        <span
-          style={{
-            fontSize: 11,
-            color: 'var(--color-text-muted)',
-            background: 'var(--color-bg-card)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '2px 7px',
-            marginLeft: 4,
-            fontWeight: 500,
-          }}
-        >
-          Semantic Search
         </span>
       </div>
 

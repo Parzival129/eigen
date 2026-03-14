@@ -310,8 +310,8 @@ export default function App() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <FileSearch size={16} color="var(--color-accent-primary)" />
-              <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-primary)' }}>
-                Semantic Search
+              <span style={{ fontWeight: 600, fontSize: 18, color: 'var(--color-text-primary)' }}>
+                Search
               </span>
             </div>
             <SearchBar
