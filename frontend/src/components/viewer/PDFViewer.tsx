@@ -35,7 +35,7 @@ interface PopoverState {
   y: number
   selectedText: string
   pageNumber?: number
-  boundingRect?: Annotation['boundingRect']
+  highlightRects?: Array<{ left: number; top: number; width: number; height: number }>
 }
 
 export default function PDFViewer({
@@ -63,7 +63,6 @@ export default function PDFViewer({
   const [popover, setPopover] = useState<PopoverState>({ visible: false, x: 0, y: 0, selectedText: '' })
   const [noteInput, setNoteInput] = useState('')
   const [showNoteInput, setShowNoteInput] = useState(false)
-  const [activeAnnotationPage, setActiveAnnotationPage] = useState<number | null>(null)
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const fileUrl = useRef<string>(URL.createObjectURL(file))
 
@@ -104,39 +103,42 @@ export default function PDFViewer({
     onStateUpdate({ totalPages: numPages })
   }, [onStateUpdate])
 
-  const handleMouseUp = useCallback(
-    (e: React.MouseEvent, pageNum: number) => {
-      const sel = window.getSelection()
-      if (!sel || sel.isCollapsed) {
-        setPopover((p) => ({ ...p, visible: false }))
-        return
-      }
-      const text = sel.toString().trim()
-      if (!text) return
+  const handleMouseUp = useCallback((e: React.MouseEvent, pageNum: number) => {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed) {
+      setPopover((p) => ({ ...p, visible: false }))
+      return
+    }
+    const text = sel.toString().trim()
+    if (!text) return
+    let highlightRects: Array<{ left: number; top: number; width: number; height: number }> | undefined
+    try {
       const range = sel.getRangeAt(0)
-      const rect = range.getBoundingClientRect()
       const pageEl = document.getElementById(`pdf-page-${pageNum}`)
-      const pageRect = pageEl?.getBoundingClientRect()
-      const boundingRect = pageRect ? {
-        x1: rect.left - pageRect.left,
-        y1: rect.top - pageRect.top,
-        x2: rect.right - pageRect.left,
-        y2: rect.bottom - pageRect.top,
-        width: rect.width,
-        height: rect.height,
-        pageNumber: pageNum,
-      } : undefined
-      setPopover({
-        visible: true,
-        x: e.clientX,
-        y: e.clientY,
-        selectedText: text,
-        pageNumber: pageNum,
-        boundingRect,
-      })
-    },
-    []
-  )
+      if (pageEl) {
+        const pageRect = pageEl.getBoundingClientRect()
+        const rects = range.getClientRects()
+        highlightRects = Array.from(rects)
+          .filter((r) => r.width > 0 && r.height > 0)
+          .map((r) => ({
+            left: r.left - pageRect.left,
+            top: r.top - pageRect.top,
+            width: r.width,
+            height: r.height,
+          }))
+      }
+    } catch {
+      // ignore
+    }
+    setPopover({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      selectedText: text,
+      pageNumber: pageNum,
+      highlightRects,
+    })
+  }, [])
 
   const handleHighlight = useCallback(() => {
     if (!popover.selectedText) return
@@ -146,7 +148,10 @@ export default function PDFViewer({
       color: 'var(--color-accent-warn)',
       pageNumber: popover.pageNumber,
       text: popover.selectedText,
-      boundingRect: popover.boundingRect,
+      ...(popover.highlightRects &&
+        popover.highlightRects.length > 0 && {
+          highlightRects: popover.highlightRects,
+        }),
     })
     window.getSelection()?.removeAllRanges()
     setPopover((p) => ({ ...p, visible: false }))
@@ -166,7 +171,9 @@ export default function PDFViewer({
       pageNumber: popover.pageNumber,
       text: popover.selectedText,
       comment: noteInput,
-      boundingRect: popover.boundingRect,
+      ...(popover.highlightRects && popover.highlightRects.length > 0 && {
+        highlightRects: popover.highlightRects,
+      }),
     })
     window.getSelection()?.removeAllRanges()
     setPopover((p) => ({ ...p, visible: false }))
@@ -186,6 +193,42 @@ export default function PDFViewer({
   }, [file])
 
   const annotationsForFile = annotations.filter((a) => a.fileId === fileId)
+
+  const rectsOverlap = (
+    a: { left: number; top: number; width: number; height: number },
+    b: { left: number; top: number; width: number; height: number }
+  ) =>
+    a.left < b.left + b.width &&
+    a.left + a.width > b.left &&
+    a.top < b.top + b.height &&
+    a.top + a.height > b.top
+
+  const matchingHighlightId =
+    popover.pageNumber != null
+      ? annotationsForFile.find((a) => {
+          if (a.type !== 'highlight' || a.pageNumber !== popover.pageNumber) return false
+          if (
+            popover.highlightRects &&
+            popover.highlightRects.length > 0 &&
+            a.highlightRects &&
+            a.highlightRects.length > 0
+          ) {
+            return a.highlightRects.some((ar) =>
+              popover.highlightRects!.some((pr) => rectsOverlap(ar, pr))
+            )
+          }
+          return a.text === popover.selectedText
+        })?.id ?? null
+      : null
+
+  const handleRemoveHighlight = useCallback(
+    (id: string) => {
+      onRemoveAnnotation(id)
+      setPopover((p) => ({ ...p, visible: false }))
+      window.getSelection()?.removeAllRanges()
+    },
+    [onRemoveAnnotation]
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -259,36 +302,35 @@ export default function PDFViewer({
                   renderAnnotationLayer
                 />
 
-                {/* Annotation highlight overlays */}
-                {pageAnnotations.filter(a => a.boundingRect).map(ann => (
-                  <div
-                    key={ann.id}
-                    id={`pdf-ann-${ann.id}`}
-                    className={activeAnnotationId === ann.id ? 'annotation-flash' : ''}
-                    onClick={() => {
-                      if (!viewerState.showAnnotationsPanel) onToggleAnnotationsPanel()
-                      setActiveAnnotationId(ann.id)
-                      setTimeout(() => {
-                        document.getElementById(`ann-item-${ann.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                      }, 50)
-                      setTimeout(() => setActiveAnnotationId(null), 1500)
-                    }}
-                    style={{
-                      position: 'absolute',
-                      left: ann.boundingRect!.x1,
-                      top: ann.boundingRect!.y1,
-                      width: ann.boundingRect!.width,
-                      height: ann.boundingRect!.height,
-                      background: activeAnnotationId === ann.id
-                        ? undefined
-                        : ann.type === 'note' ? 'rgba(168, 196, 212, 0.45)' : 'rgba(232, 201, 122, 0.45)',
-                      borderBottom: ann.type === 'note' ? '2px solid var(--color-accent-info)' : undefined,
-                      borderRadius: 2,
-                      cursor: 'pointer',
-                      zIndex: 3,
-                    }}
-                  />
-                ))}
+                {/* User highlight overlays */}
+                {annotationsForFile
+                  .filter((a) => a.pageNumber === pageNum && a.highlightRects && a.highlightRects.length > 0)
+                  .flatMap((ann) =>
+                    (ann.highlightRects ?? []).map((rect, i) => (
+                      <div
+                        key={`${ann.id}-${i}`}
+                        className={
+                          activeAnnotationId === ann.id
+                            ? (ann.type === 'note' ? 'annotation-flash' : 'annotation-flash-highlight')
+                            : ann.type === 'note' ? '' : 'highlight-user'
+                        }
+                        style={{
+                          position: 'absolute',
+                          left: rect.left,
+                          top: rect.top,
+                          width: rect.width,
+                          height: rect.height,
+                          background: activeAnnotationId === ann.id
+                            ? undefined
+                            : ann.type === 'note' ? 'rgba(168, 196, 212, 0.45)' : undefined,
+                          borderBottom: ann.type === 'note' ? '2px solid var(--color-accent-info)' : undefined,
+                          borderRadius: 2,
+                          pointerEvents: 'none',
+                          zIndex: 4,
+                        }}
+                      />
+                    ))
+                  )}
 
                 {/* Search highlight overlay (shows on matched page) */}
                 {isSearchPage && (
@@ -369,9 +411,8 @@ export default function PDFViewer({
             onPageChange(ann.pageNumber)
             const el = document.getElementById(`pdf-page-${ann.pageNumber}`)
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            setActiveAnnotationPage(ann.pageNumber)
             setActiveAnnotationId(ann.id)
-            setTimeout(() => { setActiveAnnotationPage(null); setActiveAnnotationId(null) }, 1500)
+            setTimeout(() => setActiveAnnotationId(null), 3000)
           }}
           onRemove={onRemoveAnnotation}
         />
@@ -383,6 +424,8 @@ export default function PDFViewer({
           x={popover.x}
           y={popover.y}
           onHighlight={handleHighlight}
+          onRemoveHighlight={handleRemoveHighlight}
+          matchingHighlightId={matchingHighlightId}
           onAddNote={handleAddNote}
           onCopy={handleCopy}
           onClose={() => setPopover((p) => ({ ...p, visible: false }))}

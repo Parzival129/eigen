@@ -3,6 +3,7 @@ import type { Annotation } from '../../types'
 
 interface AnnotationPanelProps {
   annotations: Annotation[]
+  activeAnnotationId?: string | null
   onClose: () => void
   onAnnotationClick: (annotation: Annotation) => void
   onRemove: (id: string) => void
@@ -11,6 +12,7 @@ interface AnnotationPanelProps {
 
 export default function AnnotationPanel({
   annotations,
+  activeAnnotationId,
   onClose,
   onAnnotationClick,
   onRemove,
@@ -107,7 +109,7 @@ export default function AnnotationPanel({
               key={ann.id}
               id={`ann-item-${ann.id}`}
               onClick={() => onAnnotationClick(ann)}
-              className={activeAnnotationId === ann.id ? 'annotation-flash' : ''}
+              className={activeAnnotationId === ann.id ? (ann.type === 'highlight' ? 'annotation-flash-highlight' : 'annotation-flash') : ''}
               style={{
                 background: 'var(--color-bg-card)',
                 border: '1px solid var(--color-border)',

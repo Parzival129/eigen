@@ -32,6 +32,7 @@ interface PopoverState {
   y: number
   selectedText: string
   selectionStart?: number
+  selectionEnd?: number
 }
 
 function ToolBtn({
@@ -117,19 +118,58 @@ export default function TXTViewer({
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     const sel = window.getSelection()
-    if (!sel || sel.isCollapsed) {
+    if (!sel || sel.isCollapsed || !contentRef.current) {
       setPopover((p) => ({ ...p, visible: false }))
       return
     }
     const text = sel.toString().trim()
     if (!text) return
+    let charStart: number | undefined
+    let charEnd: number | undefined
+    try {
+      const range = sel.getRangeAt(0)
+      const contentEl = contentRef.current.querySelector('.prose-viewer') ?? contentRef.current
+      const preRange = document.createRange()
+      preRange.selectNodeContents(contentEl)
+      preRange.setEnd(range.startContainer, range.startOffset)
+      charStart = preRange.toString().length
+      preRange.setEnd(range.endContainer, range.endOffset)
+      charEnd = preRange.toString().length
+    } catch {
+      // fallback: no position
+    }
     setPopover({
       visible: true,
       x: e.clientX,
       y: e.clientY,
       selectedText: text,
+      selectionStart: charStart,
+      selectionEnd: charEnd,
     })
   }, [])
+
+  const annotationsForFile = annotations.filter((a) => a.fileId === fileId)
+
+  const matchingHighlightId: string | null =
+    popover.selectionStart != null && popover.selectionEnd != null
+      ? annotationsForFile.find(
+          (a) =>
+            a.type === 'highlight' &&
+            a.charStart != null &&
+            a.charEnd != null &&
+            a.charStart <= popover.selectionEnd! &&
+            a.charEnd >= popover.selectionStart!
+        )?.id ?? null
+      : null
+
+  const handleRemoveHighlight = useCallback(
+    (id: string) => {
+      onRemoveAnnotation(id)
+      setPopover((p) => ({ ...p, visible: false }))
+      window.getSelection()?.removeAllRanges()
+    },
+    [onRemoveAnnotation]
+  )
 
   const handleHighlight = useCallback(() => {
     if (!popover.selectedText) return
@@ -138,6 +178,11 @@ export default function TXTViewer({
       type: 'highlight',
       color: 'var(--color-accent-warn)',
       text: popover.selectedText,
+      ...(popover.selectionStart != null &&
+        popover.selectionEnd != null && {
+          charStart: popover.selectionStart,
+          charEnd: popover.selectionEnd,
+        }),
     })
     setPopover((p) => ({ ...p, visible: false }))
     window.getSelection()?.removeAllRanges()
@@ -155,6 +200,11 @@ export default function TXTViewer({
       color: 'var(--color-accent-info)',
       text: popover.selectedText,
       comment: noteInput,
+      ...(popover.selectionStart != null &&
+        popover.selectionEnd != null && {
+          charStart: popover.selectionStart,
+          charEnd: popover.selectionEnd,
+        }),
     })
     setPopover((p) => ({ ...p, visible: false }))
     setShowNoteInput(false)
@@ -175,7 +225,82 @@ export default function TXTViewer({
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }, [file])
 
-  const annotationsForFile = annotations.filter((a) => a.fileId === fileId)
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
+
+  const handleAnnotationClick = useCallback((ann: Annotation) => {
+    const el = document.getElementById(`annotation-${ann.id}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setActiveAnnotationId(ann.id)
+    setTimeout(() => setActiveAnnotationId(null), 3000)
+  }, [])
+
+  const renderContent = () => {
+    type Segment = { start: number; end: number; color: string; borderBottom?: string; key: string; annType?: string; isSearch?: boolean }
+    const segments: Segment[] = []
+
+    if (searchHighlight?.chunkText) {
+      const idx = content.indexOf(searchHighlight.chunkText)
+      if (idx !== -1) {
+        segments.push({ start: idx, end: idx + searchHighlight.chunkText.length, color: 'rgba(124, 158, 135, 0.40)', key: 'search', isSearch: true })
+      }
+    }
+
+    for (const ann of annotationsForFile) {
+      if (!ann.text) continue
+      let start: number, end: number
+      if (ann.charStart != null && ann.charEnd != null) {
+        start = Math.max(0, ann.charStart)
+        end = Math.min(content.length, ann.charEnd)
+      } else {
+        const idx = content.indexOf(ann.text)
+        if (idx === -1) continue
+        start = idx
+        end = idx + ann.text.length
+      }
+      if (start >= end) continue
+      segments.push({
+        start, end,
+        color: ann.type === 'note' ? 'rgba(168, 196, 212, 0.45)' : 'rgba(232, 201, 122, 0.45)',
+        borderBottom: ann.type === 'note' ? '2px solid var(--color-accent-info)' : undefined,
+        key: ann.id,
+        annType: ann.type,
+      })
+    }
+
+    if (segments.length === 0) return <span>{content}</span>
+
+    segments.sort((a, b) => a.start - b.start)
+    const merged: Segment[] = []
+    let maxEnd = 0
+    for (const seg of segments) {
+      if (seg.start >= maxEnd) {
+        merged.push(seg)
+        maxEnd = seg.end
+      } else if (seg.end > maxEnd) {
+        merged.push({ ...seg, start: maxEnd })
+        maxEnd = seg.end
+      }
+    }
+
+    const nodes: React.ReactNode[] = []
+    let cursor = 0
+    for (const seg of merged) {
+      if (seg.start > cursor) nodes.push(<span key={`plain-${cursor}`}>{content.slice(cursor, seg.start)}</span>)
+      nodes.push(
+        <mark
+          key={seg.key}
+          id={`annotation-${seg.key}`}
+          className={seg.isSearch ? 'highlight-search' : (activeAnnotationId === seg.key ? (seg.annType === 'highlight' ? 'annotation-flash-highlight' : 'annotation-flash') : '')}
+          style={{ background: !seg.isSearch && activeAnnotationId !== seg.key ? seg.color : undefined, borderRadius: 2, padding: '1px 0', borderBottom: seg.borderBottom }}
+        >
+          {content.slice(seg.start, seg.end)}
+        </mark>
+      )
+      cursor = seg.end
+    }
+    if (cursor < content.length) nodes.push(<span key={`plain-${cursor}`}>{content.slice(cursor)}</span>)
+    return <>{nodes}</>
+  }
 
   const handleAnnotationClick = useCallback((ann: Annotation) => {
     const el = document.getElementById(`annotation-${ann.id}`)
@@ -339,9 +464,9 @@ export default function TXTViewer({
       {viewerState.showAnnotationsPanel && (
         <AnnotationPanel
           annotations={annotationsForFile}
+          activeAnnotationId={activeAnnotationId}
           onClose={onToggleAnnotationsPanel}
           onAnnotationClick={handleAnnotationClick}
-          activeAnnotationId={activeAnnotationId}
           onRemove={onRemoveAnnotation}
         />
       )}
@@ -352,6 +477,8 @@ export default function TXTViewer({
           x={popover.x}
           y={popover.y}
           onHighlight={handleHighlight}
+          onRemoveHighlight={handleRemoveHighlight}
+          matchingHighlightId={matchingHighlightId}
           onAddNote={handleAddNote}
           onCopy={handleCopy}
           onClose={() => setPopover((p) => ({ ...p, visible: false }))}

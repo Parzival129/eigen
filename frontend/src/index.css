@@ -80,13 +80,24 @@ body {
 /* ── Annotation flash animation ── */
 @keyframes annotation-flash {
   0%   { background: rgba(168, 196, 212, 0.45); }
-  30%  { background: rgba(168, 196, 212, 0.95); }
+  30%  { background: rgba(168, 196, 212, 0.70); }
   60%  { background: rgba(168, 196, 212, 0.45); }
-  80%  { background: rgba(168, 196, 212, 0.85); }
+  80%  { background: rgba(168, 196, 212, 0.65); }
   100% { background: rgba(168, 196, 212, 0.45); }
 }
 .annotation-flash {
-  animation: annotation-flash 2s ease;
+  animation: annotation-flash 3s ease;
+}
+
+@keyframes annotation-flash-highlight {
+  0%   { background: rgba(232, 201, 122, 0.45); }
+  30%  { background: rgba(232, 201, 122, 0.70); }
+  60%  { background: rgba(232, 201, 122, 0.45); }
+  80%  { background: rgba(232, 201, 122, 0.65); }
+  100% { background: rgba(232, 201, 122, 0.45); }
+}
+.annotation-flash-highlight {
+  animation: annotation-flash-highlight 3s ease;
 }
 
 /* ── Shimmer animation for skeleton loaders ── */

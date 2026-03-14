@@ -5,6 +5,8 @@ interface SelectionPopoverProps {
   x: number
   y: number
   onHighlight: () => void
+  onRemoveHighlight?: (annotationId: string) => void
+  matchingHighlightId?: string | null
   onAddNote: () => void
   onCopy: () => void
   onClose: () => void
@@ -14,6 +16,8 @@ export default function SelectionPopover({
   x,
   y,
   onHighlight,
+  onRemoveHighlight,
+  matchingHighlightId,
   onAddNote,
   onCopy,
   onClose,
@@ -41,12 +45,16 @@ export default function SelectionPopover({
       }}
     >
       <button
-        onClick={onHighlight}
-        title="Highlight"
+        onClick={
+          matchingHighlightId && onRemoveHighlight
+            ? () => onRemoveHighlight(matchingHighlightId)
+            : onHighlight
+        }
+        title={matchingHighlightId ? 'Remove highlight' : 'Highlight'}
         style={{ display: 'flex', alignItems: 'center', gap: 5 }}
       >
         <Highlighter size={13} color="var(--color-accent-warn)" />
-        Highlight
+        {matchingHighlightId ? 'Remove highlight' : 'Highlight'}
       </button>
       <button
         onClick={onAddNote}

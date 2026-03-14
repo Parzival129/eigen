@@ -239,7 +239,7 @@ export default function EPUBViewer({
           onClose={onToggleAnnotationsPanel}
           onAnnotationClick={(ann) => {
             setActiveAnnotationId(ann.id)
-            setTimeout(() => setActiveAnnotationId(null), 1500)
+            setTimeout(() => setActiveAnnotationId(null), 3000)
           }}
           activeAnnotationId={activeAnnotationId}
           onRemove={onRemoveAnnotation}
