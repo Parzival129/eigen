@@ -1,7 +1,6 @@
 <p align="center">
     <img src="assets/eigen-banner.png" alt="Eigen" width="1280" />
 </p>
-# Eigen
 
 An educational platform for semantic document search. Upload your files, and Eigen will chunk, embed, and index them so you can search across all your content using natural language.
 
