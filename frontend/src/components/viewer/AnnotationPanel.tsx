@@ -7,7 +7,6 @@ interface AnnotationPanelProps {
   onClose: () => void
   onAnnotationClick: (annotation: Annotation) => void
   onRemove: (id: string) => void
-  activeAnnotationId?: string | null
 }
 
 export default function AnnotationPanel({
@@ -16,7 +15,6 @@ export default function AnnotationPanel({
   onClose,
   onAnnotationClick,
   onRemove,
-  activeAnnotationId,
 }: AnnotationPanelProps) {
   return (
     <div

@@ -193,6 +193,9 @@ export default function PDFViewer({
   }, [file])
 
   const annotationsForFile = annotations.filter((a) => a.fileId === fileId)
+  const activeAnnotationPage = activeAnnotationId
+    ? (annotationsForFile.find((a) => a.id === activeAnnotationId)?.pageNumber ?? null)
+    : null
 
   const rectsOverlap = (
     a: { left: number; top: number; width: number; height: number },

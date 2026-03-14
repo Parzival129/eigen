@@ -225,8 +225,6 @@ export default function TXTViewer({
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }, [file])
 
-  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
-
   const handleAnnotationClick = useCallback((ann: Annotation) => {
     const el = document.getElementById(`annotation-${ann.id}`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -292,78 +290,6 @@ export default function TXTViewer({
           id={`annotation-${seg.key}`}
           className={seg.isSearch ? 'highlight-search' : (activeAnnotationId === seg.key ? (seg.annType === 'highlight' ? 'annotation-flash-highlight' : 'annotation-flash') : '')}
           style={{ background: !seg.isSearch && activeAnnotationId !== seg.key ? seg.color : undefined, borderRadius: 2, padding: '1px 0', borderBottom: seg.borderBottom }}
-        >
-          {content.slice(seg.start, seg.end)}
-        </mark>
-      )
-      cursor = seg.end
-    }
-    if (cursor < content.length) nodes.push(<span key={`plain-${cursor}`}>{content.slice(cursor)}</span>)
-    return <>{nodes}</>
-  }
-
-  const handleAnnotationClick = useCallback((ann: Annotation) => {
-    const el = document.getElementById(`annotation-${ann.id}`)
-    if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    setActiveAnnotationId(ann.id)
-    setTimeout(() => setActiveAnnotationId(null), 1500)
-  }, [])
-
-  const renderContent = () => {
-    type Segment = { start: number; end: number; color: string; borderBottom?: string; key: string }
-    const segments: Segment[] = []
-
-    for (const ann of annotationsForFile) {
-      if (!ann.text) continue
-      const idx = content.indexOf(ann.text)
-      if (idx === -1) continue
-      segments.push({
-        start: idx,
-        end: idx + ann.text.length,
-        color: ann.type === 'note' ? 'rgba(168, 196, 212, 0.45)' : 'rgba(232, 201, 122, 0.45)',
-        borderBottom: ann.type === 'note' ? '2px solid var(--color-accent-info)' : undefined,
-        key: ann.id,
-      })
-    }
-
-    if (searchHighlight?.chunkText) {
-      const idx = content.indexOf(searchHighlight.chunkText)
-      if (idx !== -1) {
-        segments.push({
-          start: idx,
-          end: idx + searchHighlight.chunkText.length,
-          color: 'rgba(124, 158, 135, 0.35)',
-          key: 'search',
-        })
-      }
-    }
-
-    if (segments.length === 0) return <span>{content}</span>
-
-    segments.sort((a, b) => a.start - b.start)
-    const merged: Segment[] = []
-    let maxEnd = 0
-    for (const seg of segments) {
-      if (seg.start >= maxEnd) {
-        merged.push(seg)
-        maxEnd = seg.end
-      } else if (seg.end > maxEnd) {
-        merged.push({ ...seg, start: maxEnd })
-        maxEnd = seg.end
-      }
-    }
-
-    const nodes: React.ReactNode[] = []
-    let cursor = 0
-    for (const seg of merged) {
-      if (seg.start > cursor) nodes.push(<span key={`plain-${cursor}`}>{content.slice(cursor, seg.start)}</span>)
-      nodes.push(
-        <mark
-          key={seg.key}
-          id={`annotation-${seg.key}`}
-          className={activeAnnotationId === seg.key ? 'annotation-flash' : ''}
-          style={{ background: activeAnnotationId === seg.key ? undefined : seg.color, borderRadius: 2, padding: '1px 0', borderBottom: seg.borderBottom }}
         >
           {content.slice(seg.start, seg.end)}
         </mark>
