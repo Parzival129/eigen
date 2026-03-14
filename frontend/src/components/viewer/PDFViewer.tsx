@@ -35,6 +35,7 @@ interface PopoverState {
   y: number
   selectedText: string
   pageNumber?: number
+  boundingRect?: Annotation['boundingRect']
 }
 
 export default function PDFViewer({
@@ -62,6 +63,8 @@ export default function PDFViewer({
   const [popover, setPopover] = useState<PopoverState>({ visible: false, x: 0, y: 0, selectedText: '' })
   const [noteInput, setNoteInput] = useState('')
   const [showNoteInput, setShowNoteInput] = useState(false)
+  const [activeAnnotationPage, setActiveAnnotationPage] = useState<number | null>(null)
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const fileUrl = useRef<string>(URL.createObjectURL(file))
 
   useEffect(() => {
@@ -110,12 +113,26 @@ export default function PDFViewer({
       }
       const text = sel.toString().trim()
       if (!text) return
+      const range = sel.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      const pageEl = document.getElementById(`pdf-page-${pageNum}`)
+      const pageRect = pageEl?.getBoundingClientRect()
+      const boundingRect = pageRect ? {
+        x1: rect.left - pageRect.left,
+        y1: rect.top - pageRect.top,
+        x2: rect.right - pageRect.left,
+        y2: rect.bottom - pageRect.top,
+        width: rect.width,
+        height: rect.height,
+        pageNumber: pageNum,
+      } : undefined
       setPopover({
         visible: true,
         x: e.clientX,
         y: e.clientY,
         selectedText: text,
         pageNumber: pageNum,
+        boundingRect,
       })
     },
     []
@@ -129,6 +146,7 @@ export default function PDFViewer({
       color: 'var(--color-accent-warn)',
       pageNumber: popover.pageNumber,
       text: popover.selectedText,
+      boundingRect: popover.boundingRect,
     })
     window.getSelection()?.removeAllRanges()
     setPopover((p) => ({ ...p, visible: false }))
@@ -148,6 +166,7 @@ export default function PDFViewer({
       pageNumber: popover.pageNumber,
       text: popover.selectedText,
       comment: noteInput,
+      boundingRect: popover.boundingRect,
     })
     window.getSelection()?.removeAllRanges()
     setPopover((p) => ({ ...p, visible: false }))
@@ -214,14 +233,21 @@ export default function PDFViewer({
         >
           {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => {
             const isSearchPage = searchHighlight?.pageNumber === pageNum
+            const pageAnnotations = annotationsForFile.filter((a) => a.pageNumber === pageNum)
+            const pageHighlights = pageAnnotations.filter((a) => a.type === 'highlight')
+            const pageNotes = pageAnnotations.filter((a) => a.type === 'note')
             return (
               <div
                 key={pageNum}
                 id={`pdf-page-${pageNum}`}
-                className="pdf-page-wrapper"
+                className={activeAnnotationPage === pageNum ? 'pdf-page-wrapper annotation-flash' : 'pdf-page-wrapper'}
                 style={{
-                  outline: isSearchPage ? '2px solid var(--color-accent-primary)' : 'none',
+                  position: 'relative',
+                  outline: activeAnnotationPage === pageNum
+                    ? '3px solid var(--color-accent-info)'
+                    : isSearchPage ? '2px solid var(--color-accent-primary)' : 'none',
                   outlineOffset: 2,
+                  transition: 'outline 0.3s',
                 }}
                 onMouseUp={(e) => handleMouseUp(e, pageNum)}
               >
@@ -232,6 +258,37 @@ export default function PDFViewer({
                   renderTextLayer
                   renderAnnotationLayer
                 />
+
+                {/* Annotation highlight overlays */}
+                {pageAnnotations.filter(a => a.boundingRect).map(ann => (
+                  <div
+                    key={ann.id}
+                    id={`pdf-ann-${ann.id}`}
+                    className={activeAnnotationId === ann.id ? 'annotation-flash' : ''}
+                    onClick={() => {
+                      if (!viewerState.showAnnotationsPanel) onToggleAnnotationsPanel()
+                      setActiveAnnotationId(ann.id)
+                      setTimeout(() => {
+                        document.getElementById(`ann-item-${ann.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                      }, 50)
+                      setTimeout(() => setActiveAnnotationId(null), 1500)
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: ann.boundingRect!.x1,
+                      top: ann.boundingRect!.y1,
+                      width: ann.boundingRect!.width,
+                      height: ann.boundingRect!.height,
+                      background: activeAnnotationId === ann.id
+                        ? undefined
+                        : ann.type === 'note' ? 'rgba(168, 196, 212, 0.45)' : 'rgba(232, 201, 122, 0.45)',
+                      borderBottom: ann.type === 'note' ? '2px solid var(--color-accent-info)' : undefined,
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                      zIndex: 3,
+                    }}
+                  />
+                ))}
 
                 {/* Search highlight overlay (shows on matched page) */}
                 {isSearchPage && (
@@ -255,6 +312,46 @@ export default function PDFViewer({
                     Search result matched on this page
                   </div>
                 )}
+
+                {/* Annotation badges */}
+                {pageAnnotations.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: isSearchPage ? 44 : 8,
+                      right: 8,
+                      display: 'flex',
+                      gap: 4,
+                      zIndex: 5,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {pageHighlights.length > 0 && (
+                      <div style={{
+                        background: 'var(--color-accent-warn)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '3px 8px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#7a5a00',
+                      }}>
+                        {pageHighlights.length} highlight{pageHighlights.length > 1 ? 's' : ''}
+                      </div>
+                    )}
+                    {pageNotes.length > 0 && (
+                      <div style={{
+                        background: 'var(--color-accent-info)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '3px 8px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#2a4a5e',
+                      }}>
+                        {pageNotes.length} note{pageNotes.length > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -265,9 +362,16 @@ export default function PDFViewer({
       {viewerState.showAnnotationsPanel && (
         <AnnotationPanel
           annotations={annotationsForFile}
+          activeAnnotationId={activeAnnotationId}
           onClose={onToggleAnnotationsPanel}
           onAnnotationClick={(ann) => {
-            if (ann.pageNumber) onPageChange(ann.pageNumber)
+            if (!ann.pageNumber) return
+            onPageChange(ann.pageNumber)
+            const el = document.getElementById(`pdf-page-${ann.pageNumber}`)
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            setActiveAnnotationPage(ann.pageNumber)
+            setActiveAnnotationId(ann.id)
+            setTimeout(() => { setActiveAnnotationPage(null); setActiveAnnotationId(null) }, 1500)
           }}
           onRemove={onRemoveAnnotation}
         />

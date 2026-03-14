@@ -6,6 +6,7 @@ interface AnnotationPanelProps {
   onClose: () => void
   onAnnotationClick: (annotation: Annotation) => void
   onRemove: (id: string) => void
+  activeAnnotationId?: string | null
 }
 
 export default function AnnotationPanel({
@@ -13,6 +14,7 @@ export default function AnnotationPanel({
   onClose,
   onAnnotationClick,
   onRemove,
+  activeAnnotationId,
 }: AnnotationPanelProps) {
   return (
     <div
@@ -103,7 +105,9 @@ export default function AnnotationPanel({
           annotations.map((ann) => (
             <div
               key={ann.id}
+              id={`ann-item-${ann.id}`}
               onClick={() => onAnnotationClick(ann)}
+              className={activeAnnotationId === ann.id ? 'annotation-flash' : ''}
               style={{
                 background: 'var(--color-bg-card)',
                 border: '1px solid var(--color-border)',

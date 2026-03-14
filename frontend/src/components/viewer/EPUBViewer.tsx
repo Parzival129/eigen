@@ -78,6 +78,7 @@ export default function EPUBViewer({
   const renditionRef = useRef<Rendition | null>(null)
   const [fontSize, setFontSize] = useState(viewerState.txtFontSize)
   const [loading, setLoading] = useState(true)
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const [chapterLabel, setChapterLabel] = useState('')
 
   useEffect(() => {
@@ -236,7 +237,11 @@ export default function EPUBViewer({
         <AnnotationPanel
           annotations={annotationsForFile}
           onClose={onToggleAnnotationsPanel}
-          onAnnotationClick={() => {}}
+          onAnnotationClick={(ann) => {
+            setActiveAnnotationId(ann.id)
+            setTimeout(() => setActiveAnnotationId(null), 1500)
+          }}
+          activeAnnotationId={activeAnnotationId}
           onRemove={onRemoveAnnotation}
         />
       )}
