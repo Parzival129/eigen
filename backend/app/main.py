@@ -1,0 +1,61 @@
+import uuid
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+import structlog
+
+from app.core.config import get_settings
+from app.core.logging import setup_logging, get_logger
+from app.api.dependencies import limiter
+from app.api.routes import health, ingest, search, files
+
+settings = get_settings()
+setup_logging(settings.log_level)
+logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting up GenAI backend")
+    yield
+    logger.info("Shutting down GenAI backend")
+
+
+app = FastAPI(
+    title="GenAI Educational Search API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# Rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Request ID middleware
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+# Routers
+app.include_router(health.router)
+app.include_router(ingest.router, prefix="/api/v1")
+app.include_router(search.router, prefix="/api/v1")
+app.include_router(files.router, prefix="/api/v1")

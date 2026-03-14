@@ -1,0 +1,30 @@
+from functools import lru_cache
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/genai"
+    database_sync_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/genai"
+    redis_url: str = "redis://localhost:6379/0"
+    openai_api_key: str
+    moorcheh_api_key: str
+    moorcheh_namespace: str = "educational-content"
+    allowed_origins: str = "http://localhost:3000"
+    max_file_size_mb: int = 100
+    upload_dir: str = "/tmp/uploads"
+    log_level: str = "INFO"
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.allowed_origins.split(",")]
+
+    @property
+    def max_file_size_bytes(self) -> int:
+        return self.max_file_size_mb * 1024 * 1024
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
