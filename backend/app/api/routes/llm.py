@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -16,7 +16,11 @@ router = APIRouter(prefix="/llm", tags=["llm"])
 @limiter.limit("10/minute")
 async def summarize(request: Request, body: SummarizeRequest) -> SummarizeResponse:
     logger.info("summarize_request", query=body.query, chunk_count=len(body.chunks))
-    summary = await generate_summary(body.query, body.chunks)
+    try:
+        summary = await generate_summary(body.query, body.chunks)
+    except ValueError as e:
+        logger.error("summarize_config_error", error=str(e))
+        raise HTTPException(status_code=503, detail=str(e))
     return SummarizeResponse(summary=summary)
 
 
@@ -24,4 +28,8 @@ async def summarize(request: Request, body: SummarizeRequest) -> SummarizeRespon
 @limiter.limit("5/minute")
 async def quiz(request: Request, body: QuizRequest) -> QuizResponse:
     logger.info("quiz_request", query=body.query, chunk_count=len(body.chunks))
-    return await generate_quiz(body.query, body.chunks)
+    try:
+        return await generate_quiz(body.query, body.chunks)
+    except ValueError as e:
+        logger.error("quiz_config_error", error=str(e))
+        raise HTTPException(status_code=503, detail=str(e))

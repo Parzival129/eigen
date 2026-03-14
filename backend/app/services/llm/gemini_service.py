@@ -15,6 +15,11 @@ def _get_client() -> genai.Client:
     global _client
     if _client is None:
         settings = get_settings()
+        if not settings.gemini_api_key:
+            raise ValueError(
+                "GEMINI_API_KEY is not configured. "
+                "Please set it in your .env file."
+            )
         _client = genai.Client(api_key=settings.gemini_api_key)
     return _client
 
