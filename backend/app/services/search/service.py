@@ -1,14 +1,12 @@
 import time
-import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
+import railtracks as rt
 from app.db.models.chunk import Chunk as ChunkModel
 from app.db.models.file import File
 from app.schemas.search import SearchRequest, SearchResponse, ChunkResult
-from app.services.embeddings.openai_provider import OpenAIEmbeddingProvider
-from app.services.moorcheh.client import get_moorcheh_client
-from app.services.moorcheh.repository import search_similar
+from app.services.search.pipeline import embed_query_node, vector_search_node, EmbedResult, VectorSearchResult
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -17,19 +15,16 @@ logger = get_logger(__name__)
 class SearchService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.embedder = OpenAIEmbeddingProvider()
-        self.moorcheh = get_moorcheh_client()
 
     async def search(self, request: SearchRequest) -> SearchResponse:
         start = time.time()
 
-        # Embed query
-        query_vector = await self.embedder.embed_text(request.query)
+        # Run the railtracks pipeline (embed + vector search)
+        with rt.Session():
+            embed_result: EmbedResult = await rt.call(embed_query_node, request)
+            vector_result: VectorSearchResult = await rt.call(vector_search_node, embed_result)
 
-        # Search Moorcheh
-        moorcheh_results = await search_similar(self.moorcheh, query_vector, top_k=request.top_k)
-
-        if not moorcheh_results:
+        if not vector_result.hits:
             return SearchResponse(
                 query=request.query,
                 results=[],
@@ -38,7 +33,7 @@ class SearchService:
             )
 
         # Extract vector IDs and scores
-        vector_id_to_score = {r["id"]: r["score"] for r in moorcheh_results}
+        vector_id_to_score = {h.vector_id: h.score for h in vector_result.hits}
         vector_ids = list(vector_id_to_score.keys())
 
         # Fetch chunks from DB using explicit column selection to avoid ORM ambiguity
@@ -63,7 +58,7 @@ class SearchService:
             file_obj = row[1]
             chunk_map[chunk_obj.vector_id] = (chunk_obj, file_obj)
 
-        # Build results preserving Moorcheh score order
+        # Build results preserving ChromaDB score order
         results = []
         for vid in vector_ids:
             if vid not in chunk_map:

@@ -8,8 +8,8 @@ from app.db.models.chunk import Chunk as ChunkModel
 from app.db.models.job import IngestionJob
 from app.schemas.files import FileListItem, FileDetail, ChunkDetail
 from app.schemas.common import SuccessResponse
-from app.services.moorcheh.client import get_moorcheh_client
-from app.services.moorcheh.repository import delete_file_vectors
+from app.services.chroma.client import get_chroma_collection
+from app.services.chroma.repository import delete_file_vectors
 from app.utils.file_utils import delete_local_file
 from app.workers.tasks import dispatch_process_file
 
@@ -83,9 +83,8 @@ async def delete_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(ChunkModel.vector_id).where(ChunkModel.file_id == file_id))
     vector_ids = [row[0] for row in result.all()]
 
-    # Delete from Moorcheh
-    moorcheh = get_moorcheh_client()
-    await delete_file_vectors(moorcheh, str(file_id), vector_ids)
+    # Delete from ChromaDB
+    await delete_file_vectors(get_chroma_collection(), str(file_id), vector_ids)
 
     # Delete local file
     delete_local_file(file.storage_path)
@@ -107,8 +106,7 @@ async def reindex_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(ChunkModel.vector_id).where(ChunkModel.file_id == file_id))
     vector_ids = [row[0] for row in result.all()]
 
-    moorcheh = get_moorcheh_client()
-    await delete_file_vectors(moorcheh, str(file_id), vector_ids)
+    await delete_file_vectors(get_chroma_collection(), str(file_id), vector_ids)
 
     # Delete chunks from DB
     result = await db.execute(select(ChunkModel).where(ChunkModel.file_id == file_id))

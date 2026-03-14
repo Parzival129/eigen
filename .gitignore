@@ -4,4 +4,6 @@ __pycache__/
 .env
 genai.db
 uploads/
+chroma_db/
+.railtracks/
 /node_modules

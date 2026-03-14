@@ -8,8 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./genai.db"
     database_sync_url: str = "sqlite:///./genai.db"
     openai_api_key: str
-    moorcheh_api_key: str
-    moorcheh_namespace: str = "educational-content"
+    chroma_persist_path: str = "./chroma_db"
     allowed_origins: str = "http://localhost:3000,http://localhost:5173"
     max_file_size_mb: int = 2048
     embedding_max_input_tokens: int = 8000

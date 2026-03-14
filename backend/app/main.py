@@ -30,6 +30,8 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    from app.services.chroma.client import get_chroma_collection
+    get_chroma_collection()
     logger.info("Starting up GenAI backend")
     yield
     logger.info("Shutting down GenAI backend")

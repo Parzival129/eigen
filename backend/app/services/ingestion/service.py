@@ -6,8 +6,8 @@ from app.db.models.chunk import Chunk as ChunkModel
 from app.db.models.job import IngestionJob
 from app.services.embeddings.openai_provider import OpenAIEmbeddingProvider
 from app.services.chunking.chunker import chunk_parsed_content
-from app.services.moorcheh.client import get_moorcheh_client
-from app.services.moorcheh.repository import index_chunks
+from app.services.chroma.client import get_chroma_collection
+from app.services.chroma.repository import index_chunks
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -34,7 +34,6 @@ class IngestionService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.embedder = OpenAIEmbeddingProvider()
-        self.moorcheh = get_moorcheh_client()
 
     async def process_file(self, file_id: uuid.UUID, job_id: uuid.UUID) -> None:
         # Update job status to started
@@ -79,8 +78,8 @@ class IngestionService:
             texts = [c.text for c in chunks]
             embeddings = await self.embedder.embed_batch(texts)
 
-            # Store in Moorcheh
-            await index_chunks(self.moorcheh, str(file_id), file.file_type, chunks, embeddings)
+            # Store in ChromaDB
+            await index_chunks(get_chroma_collection(), str(file_id), file.file_type, chunks, embeddings)
 
             # Store chunks in DB
             chunk_models = []
