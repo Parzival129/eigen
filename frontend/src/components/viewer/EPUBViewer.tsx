@@ -78,6 +78,7 @@ export default function EPUBViewer({
   const renditionRef = useRef<Rendition | null>(null)
   const [fontSize, setFontSize] = useState(viewerState.txtFontSize)
   const [loading, setLoading] = useState(true)
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const [chapterLabel, setChapterLabel] = useState('')
 
   useEffect(() => {

@@ -276,14 +276,21 @@ export default function PDFViewer({
         >
           {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => {
             const isSearchPage = searchHighlight?.pageNumber === pageNum
+            const pageAnnotations = annotationsForFile.filter((a) => a.pageNumber === pageNum)
+            const pageHighlights = pageAnnotations.filter((a) => a.type === 'highlight')
+            const pageNotes = pageAnnotations.filter((a) => a.type === 'note')
             return (
               <div
                 key={pageNum}
                 id={`pdf-page-${pageNum}`}
-                className="pdf-page-wrapper"
+                className={activeAnnotationPage === pageNum ? 'pdf-page-wrapper annotation-flash' : 'pdf-page-wrapper'}
                 style={{
-                  outline: isSearchPage ? '2px solid var(--color-accent-primary)' : 'none',
+                  position: 'relative',
+                  outline: activeAnnotationPage === pageNum
+                    ? '3px solid var(--color-accent-info)'
+                    : isSearchPage ? '2px solid var(--color-accent-primary)' : 'none',
                   outlineOffset: 2,
+                  transition: 'outline 0.3s',
                 }}
                 onMouseUp={(e) => handleMouseUp(e, pageNum)}
               >
@@ -345,6 +352,46 @@ export default function PDFViewer({
                     }}
                   >
                     Search result matched on this page
+                  </div>
+                )}
+
+                {/* Annotation badges */}
+                {pageAnnotations.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: isSearchPage ? 44 : 8,
+                      right: 8,
+                      display: 'flex',
+                      gap: 4,
+                      zIndex: 5,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {pageHighlights.length > 0 && (
+                      <div style={{
+                        background: 'var(--color-accent-warn)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '3px 8px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#7a5a00',
+                      }}>
+                        {pageHighlights.length} highlight{pageHighlights.length > 1 ? 's' : ''}
+                      </div>
+                    )}
+                    {pageNotes.length > 0 && (
+                      <div style={{
+                        background: 'var(--color-accent-info)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '3px 8px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#2a4a5e',
+                      }}>
+                        {pageNotes.length} note{pageNotes.length > 1 ? 's' : ''}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "epubjs": "^0.3.93"
+  }
+}
