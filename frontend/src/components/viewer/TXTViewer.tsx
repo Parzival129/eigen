@@ -224,73 +224,81 @@ export default function TXTViewer({
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }, [file])
 
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
+
+  const handleAnnotationClick = useCallback((ann: Annotation) => {
+    const el = document.getElementById(`annotation-${ann.id}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setActiveAnnotationId(ann.id)
+    setTimeout(() => setActiveAnnotationId(null), 3000)
+  }, [])
+
   const renderContent = () => {
-    const userHighlights = annotationsForFile.filter((a) => a.type === 'highlight')
-    const ranges: { start: number; end: number; isSearch: boolean }[] = []
+    type Segment = { start: number; end: number; color: string; borderBottom?: string; key: string; annType?: string; isSearch?: boolean }
+    const segments: Segment[] = []
 
     if (searchHighlight?.chunkText) {
       const idx = content.indexOf(searchHighlight.chunkText)
       if (idx !== -1) {
-        ranges.push({ start: idx, end: idx + searchHighlight.chunkText.length, isSearch: true })
+        segments.push({ start: idx, end: idx + searchHighlight.chunkText.length, color: 'rgba(124, 158, 135, 0.40)', key: 'search', isSearch: true })
       }
     }
-    for (const ann of userHighlights) {
+
+    for (const ann of annotationsForFile) {
       if (!ann.text) continue
+      let start: number, end: number
       if (ann.charStart != null && ann.charEnd != null) {
-        ranges.push({
-          start: Math.max(0, Math.min(ann.charStart, content.length)),
-          end: Math.min(content.length, Math.max(ann.charEnd, 0)),
-          isSearch: false,
-        })
+        start = Math.max(0, ann.charStart)
+        end = Math.min(content.length, ann.charEnd)
       } else {
-        let pos = 0
-        while (true) {
-          const idx = content.indexOf(ann.text, pos)
-          if (idx === -1) break
-          ranges.push({ start: idx, end: idx + ann.text.length, isSearch: false })
-          pos = idx + 1
-        }
+        const idx = content.indexOf(ann.text)
+        if (idx === -1) continue
+        start = idx
+        end = idx + ann.text.length
       }
-    }
-    if (ranges.length === 0) return <span>{content}</span>
-
-    ranges.sort((a, b) => a.start - b.start)
-    const merged: { start: number; end: number; isSearch: boolean }[] = []
-    for (const r of ranges) {
-      const last = merged[merged.length - 1]
-      if (last && r.start <= last.end) {
-        last.end = Math.max(last.end, r.end)
-        last.isSearch = last.isSearch || r.isSearch
-      } else {
-        merged.push({ ...r })
-      }
+      if (start >= end) continue
+      segments.push({
+        start, end,
+        color: ann.type === 'note' ? 'rgba(168, 196, 212, 0.45)' : 'rgba(232, 201, 122, 0.45)',
+        borderBottom: ann.type === 'note' ? '2px solid var(--color-accent-info)' : undefined,
+        key: ann.id,
+        annType: ann.type,
+      })
     }
 
-    const segments: React.ReactNode[] = []
-    let pos = 0
-    for (const r of merged) {
-      if (r.start > pos) {
-        segments.push(<span key={`t-${pos}`}>{content.slice(pos, r.start)}</span>)
+    if (segments.length === 0) return <span>{content}</span>
+
+    segments.sort((a, b) => a.start - b.start)
+    const merged: Segment[] = []
+    let maxEnd = 0
+    for (const seg of segments) {
+      if (seg.start >= maxEnd) {
+        merged.push(seg)
+        maxEnd = seg.end
+      } else if (seg.end > maxEnd) {
+        merged.push({ ...seg, start: maxEnd })
+        maxEnd = seg.end
       }
-      segments.push(
+    }
+
+    const nodes: React.ReactNode[] = []
+    let cursor = 0
+    for (const seg of merged) {
+      if (seg.start > cursor) nodes.push(<span key={`plain-${cursor}`}>{content.slice(cursor, seg.start)}</span>)
+      nodes.push(
         <mark
-          key={`h-${r.start}`}
-          className={r.isSearch ? 'highlight-search' : 'highlight-user'}
-          style={{
-            borderRadius: 3,
-            padding: '1px 0',
-            background: r.isSearch ? undefined : 'rgba(232, 201, 122, 0.55)',
-          }}
+          key={seg.key}
+          id={`annotation-${seg.key}`}
+          className={seg.isSearch ? 'highlight-search' : (activeAnnotationId === seg.key ? (seg.annType === 'highlight' ? 'annotation-flash-highlight' : 'annotation-flash') : '')}
+          style={{ background: !seg.isSearch && activeAnnotationId !== seg.key ? seg.color : undefined, borderRadius: 2, padding: '1px 0', borderBottom: seg.borderBottom }}
         >
-          {content.slice(r.start, r.end)}
+          {content.slice(seg.start, seg.end)}
         </mark>
       )
-      pos = r.end
+      cursor = seg.end
     }
-    if (pos < content.length) {
-      segments.push(<span key={`t-${pos}`}>{content.slice(pos)}</span>)
-    }
-    return <>{segments}</>
+    if (cursor < content.length) nodes.push(<span key={`plain-${cursor}`}>{content.slice(cursor)}</span>)
+    return <>{nodes}</>
   }
 
   return (
@@ -375,23 +383,6 @@ export default function TXTViewer({
         ) : (
           <div className="prose-viewer" style={{ fontSize: viewerState.txtFontSize }}>
             {renderContent()}
-
-            {/* User highlight annotations overlay hint */}
-            {annotationsForFile.filter((a) => a.type === 'highlight').length > 0 && (
-              <div
-                style={{
-                  marginTop: 24,
-                  padding: '12px 16px',
-                  background: 'var(--color-bg-card)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 12,
-                  color: 'var(--color-text-muted)',
-                }}
-              >
-                {annotationsForFile.filter((a) => a.type === 'highlight').length} highlight(s) saved — open Annotations panel to view
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -400,8 +391,9 @@ export default function TXTViewer({
       {viewerState.showAnnotationsPanel && (
         <AnnotationPanel
           annotations={annotationsForFile}
+          activeAnnotationId={activeAnnotationId}
           onClose={onToggleAnnotationsPanel}
-          onAnnotationClick={() => {}}
+          onAnnotationClick={handleAnnotationClick}
           onRemove={onRemoveAnnotation}
         />
       )}

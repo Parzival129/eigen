@@ -63,6 +63,7 @@ export default function PDFViewer({
   const [popover, setPopover] = useState<PopoverState>({ visible: false, x: 0, y: 0, selectedText: '' })
   const [noteInput, setNoteInput] = useState('')
   const [showNoteInput, setShowNoteInput] = useState(false)
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const fileUrl = useRef<string>(URL.createObjectURL(file))
 
   useEffect(() => {
@@ -170,6 +171,9 @@ export default function PDFViewer({
       pageNumber: popover.pageNumber,
       text: popover.selectedText,
       comment: noteInput,
+      ...(popover.highlightRects && popover.highlightRects.length > 0 && {
+        highlightRects: popover.highlightRects,
+      }),
     })
     window.getSelection()?.removeAllRanges()
     setPopover((p) => ({ ...p, visible: false }))
@@ -291,26 +295,29 @@ export default function PDFViewer({
                   renderAnnotationLayer
                 />
 
-                {/* User highlight overlays (position-based) */}
+                {/* User highlight overlays */}
                 {annotationsForFile
-                  .filter(
-                    (a) =>
-                      a.type === 'highlight' &&
-                      a.pageNumber === pageNum &&
-                      a.highlightRects &&
-                      a.highlightRects.length > 0
-                  )
+                  .filter((a) => a.pageNumber === pageNum && a.highlightRects && a.highlightRects.length > 0)
                   .flatMap((ann) =>
                     (ann.highlightRects ?? []).map((rect, i) => (
                       <div
                         key={`${ann.id}-${i}`}
-                        className="highlight-user"
+                        className={
+                          activeAnnotationId === ann.id
+                            ? (ann.type === 'note' ? 'annotation-flash' : 'annotation-flash-highlight')
+                            : ann.type === 'note' ? '' : 'highlight-user'
+                        }
                         style={{
                           position: 'absolute',
                           left: rect.left,
                           top: rect.top,
                           width: rect.width,
                           height: rect.height,
+                          background: activeAnnotationId === ann.id
+                            ? undefined
+                            : ann.type === 'note' ? 'rgba(168, 196, 212, 0.45)' : undefined,
+                          borderBottom: ann.type === 'note' ? '2px solid var(--color-accent-info)' : undefined,
+                          borderRadius: 2,
                           pointerEvents: 'none',
                           zIndex: 4,
                         }}
@@ -350,9 +357,15 @@ export default function PDFViewer({
       {viewerState.showAnnotationsPanel && (
         <AnnotationPanel
           annotations={annotationsForFile}
+          activeAnnotationId={activeAnnotationId}
           onClose={onToggleAnnotationsPanel}
           onAnnotationClick={(ann) => {
-            if (ann.pageNumber) onPageChange(ann.pageNumber)
+            if (!ann.pageNumber) return
+            onPageChange(ann.pageNumber)
+            const el = document.getElementById(`pdf-page-${ann.pageNumber}`)
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            setActiveAnnotationId(ann.id)
+            setTimeout(() => setActiveAnnotationId(null), 3000)
           }}
           onRemove={onRemoveAnnotation}
         />

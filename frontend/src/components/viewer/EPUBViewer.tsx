@@ -236,7 +236,11 @@ export default function EPUBViewer({
         <AnnotationPanel
           annotations={annotationsForFile}
           onClose={onToggleAnnotationsPanel}
-          onAnnotationClick={() => {}}
+          onAnnotationClick={(ann) => {
+            setActiveAnnotationId(ann.id)
+            setTimeout(() => setActiveAnnotationId(null), 3000)
+          }}
+          activeAnnotationId={activeAnnotationId}
           onRemove={onRemoveAnnotation}
         />
       )}
