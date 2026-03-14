@@ -1,6 +1,8 @@
 import { Trash2, SearchX } from 'lucide-react'
 import ResultCard from './ResultCard'
-import type { SearchResult } from '../../types'
+import SummaryPanel from './SummaryPanel'
+import QuizPanel from './QuizPanel'
+import type { SearchResult, QuizData } from '../../types'
 
 interface ResultsListProps {
   results: SearchResult[]
@@ -8,6 +10,12 @@ interface ResultsListProps {
   hasSearched: boolean
   onOpenResult: (result: SearchResult) => void
   onClearResults: () => void
+  summary: string | null
+  isSummaryLoading: boolean
+  onGenerateSummary: () => void
+  quiz: QuizData | null
+  isQuizLoading: boolean
+  onGenerateQuiz: () => void
 }
 
 function SkeletonCard() {
@@ -45,6 +53,12 @@ export default function ResultsList({
   hasSearched,
   onOpenResult,
   onClearResults,
+  summary,
+  isSummaryLoading,
+  onGenerateSummary,
+  quiz,
+  isQuizLoading,
+  onGenerateQuiz,
 }: ResultsListProps) {
   if (isLoading) {
     return (
@@ -120,8 +134,22 @@ export default function ResultsList({
     )
   }
 
+  const hasResults = results.length > 0
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <SummaryPanel
+        summary={summary}
+        isLoading={isSummaryLoading}
+        onGenerate={onGenerateSummary}
+        hasResults={hasResults}
+      />
+      <QuizPanel
+        quiz={quiz}
+        isLoading={isQuizLoading}
+        onGenerate={onGenerateQuiz}
+        hasResults={hasResults}
+      />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>
           {results.length} result{results.length !== 1 ? 's' : ''} found

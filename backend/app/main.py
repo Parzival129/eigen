@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.logging import setup_logging, get_logger
 from app.api.dependencies import limiter
 from app.api.routes import health, ingest, search, files
+from app.api.routes import llm as llm_routes
 
 settings = get_settings()
 setup_logging(settings.log_level)
@@ -73,3 +74,4 @@ app.include_router(health.router)
 app.include_router(ingest.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(files.router, prefix="/api/v1")
+app.include_router(llm_routes.router, prefix="/api/v1")

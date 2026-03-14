@@ -1,4 +1,4 @@
-import type { FileType, SearchResult } from '../types'
+import type { FileType, SearchResult, QuizData } from '../types'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -111,6 +111,37 @@ export async function deleteFile(fileId: string): Promise<void> {
 
 export async function listFiles(): Promise<FileInfo[]> {
   return request<FileInfo[]>('/api/v1/files')
+}
+
+export async function generateSummary(query: string, results: SearchResult[]): Promise<string> {
+  const data = await request<{ summary: string }>('/api/v1/llm/summarize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query,
+      chunks: results.map((r) => ({
+        text: r.chunkText,
+        page_number: r.pageNumber ?? null,
+        file_name: r.fileName,
+      })),
+    }),
+  })
+  return data.summary
+}
+
+export async function generateQuiz(query: string, results: SearchResult[]): Promise<QuizData> {
+  return request<QuizData>('/api/v1/llm/quiz', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query,
+      chunks: results.map((r) => ({
+        text: r.chunkText,
+        page_number: r.pageNumber ?? null,
+        file_name: r.fileName,
+      })),
+    }),
+  })
 }
 
 export async function pollJobUntilDone(

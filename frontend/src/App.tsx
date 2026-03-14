@@ -9,8 +9,8 @@ import SearchBar from './components/search/SearchBar'
 import ResultsList from './components/search/ResultsList'
 import { useAnnotations } from './hooks/useAnnotations'
 import { useViewerState } from './hooks/useViewerState'
-import { uploadFile, searchDocuments, deleteFile, pollJobUntilDone } from './api/client'
-import type { UploadedFile, SearchResult } from './types'
+import { uploadFile, searchDocuments, deleteFile, pollJobUntilDone, generateSummary, generateQuiz } from './api/client'
+import type { UploadedFile, SearchResult, QuizData } from './types'
 import { FileSearch, BookOpen } from 'lucide-react'
 
 const MIN_PANEL_W = 200
@@ -25,6 +25,11 @@ export default function App() {
   const [hasSearched, setHasSearched] = useState(false)
   const [scopeFileId, setScopeFileId] = useState<string | null>(null)
   const [activeSearchHighlight, setActiveSearchHighlight] = useState<SearchResult | null>(null)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false)
+  const [quiz, setQuiz] = useState<QuizData | null>(null)
+  const [isQuizLoading, setIsQuizLoading] = useState(false)
+  const [lastSearchQuery, setLastSearchQuery] = useState('')
 
   const [leftWidth, setLeftWidth] = useState(DEFAULT_LEFT_W)
   const [rightWidth, setRightWidth] = useState(DEFAULT_RIGHT_W)
@@ -144,6 +149,9 @@ export default function App() {
       if (!files.some((f) => f.status === 'indexed')) return
       setIsSearching(true)
       setHasSearched(true)
+      setSummary(null)
+      setQuiz(null)
+      setLastSearchQuery(query)
       try {
         const results = await searchDocuments(query, undefined, scopeFileId ?? undefined)
         setSearchResults(results)
@@ -153,6 +161,28 @@ export default function App() {
     },
     [files, scopeFileId]
   )
+
+  const handleGenerateSummary = useCallback(async () => {
+    if (!lastSearchQuery || searchResults.length === 0) return
+    setIsSummaryLoading(true)
+    try {
+      const text = await generateSummary(lastSearchQuery, searchResults)
+      setSummary(text)
+    } finally {
+      setIsSummaryLoading(false)
+    }
+  }, [lastSearchQuery, searchResults])
+
+  const handleGenerateQuiz = useCallback(async () => {
+    if (!lastSearchQuery || searchResults.length === 0) return
+    setIsQuizLoading(true)
+    try {
+      const data = await generateQuiz(lastSearchQuery, searchResults)
+      setQuiz(data)
+    } finally {
+      setIsQuizLoading(false)
+    }
+  }, [lastSearchQuery, searchResults])
 
   const handleOpenResult = useCallback(
     (result: SearchResult) => {
@@ -172,6 +202,9 @@ export default function App() {
     setIsSearching(false)
     setScopeFileId(null)
     setActiveSearchHighlight(null)
+    setSummary(null)
+    setQuiz(null)
+    setLastSearchQuery('')
     viewer.setActiveFile(null)
   }, [viewer])
 
@@ -344,7 +377,13 @@ export default function App() {
               isLoading={isSearching}
               hasSearched={hasSearched}
               onOpenResult={handleOpenResult}
-              onClearResults={() => { setSearchResults([]); setHasSearched(false) }}
+              onClearResults={() => { setSearchResults([]); setHasSearched(false); setSummary(null); setQuiz(null) }}
+              summary={summary}
+              isSummaryLoading={isSummaryLoading}
+              onGenerateSummary={handleGenerateSummary}
+              quiz={quiz}
+              isQuizLoading={isQuizLoading}
+              onGenerateQuiz={handleGenerateQuiz}
             />
           </div>
         </div>

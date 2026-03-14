@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     log_level: str = "INFO"
     vision_model: str = "gpt-4o-mini"
+    gemini_api_key: str = ""
 
     @property
     def allowed_origins_list(self) -> list[str]:
