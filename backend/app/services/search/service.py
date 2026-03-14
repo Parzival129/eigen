@@ -18,18 +18,28 @@ class SearchService:
 
     async def search(self, request: SearchRequest) -> SearchResponse:
         start = time.time()
+        logger.info(
+            "Search started",
+            query=request.query,
+            top_k=request.top_k,
+            file_id=str(request.file_id) if request.file_id else None,
+        )
 
         # Run the railtracks pipeline (embed + vector search)
         with rt.Session():
             embed_result: EmbedResult = await rt.call(embed_query_node, request)
+            logger.debug("Query embedded", query=request.query, vector_dimension=len(embed_result.vector))
             vector_result: VectorSearchResult = await rt.call(vector_search_node, embed_result)
+            logger.debug("Vector search complete", hits=len(vector_result.hits))
 
         if not vector_result.hits:
+            elapsed_ms = (time.time() - start) * 1000
+            logger.info("Search returned no results", query=request.query, elapsed_ms=round(elapsed_ms, 2))
             return SearchResponse(
                 query=request.query,
                 results=[],
                 total=0,
-                execution_time_ms=(time.time() - start) * 1000,
+                execution_time_ms=elapsed_ms,
             )
 
         # Extract vector IDs and scores
@@ -80,6 +90,13 @@ class SearchService:
             ))
 
         elapsed_ms = (time.time() - start) * 1000
+        logger.info(
+            "Search complete",
+            query=request.query,
+            results=len(results),
+            top_score=round(results[0].score, 4) if results else None,
+            elapsed_ms=round(elapsed_ms, 2),
+        )
         return SearchResponse(
             query=request.query,
             results=results,

@@ -4,6 +4,9 @@ from app.schemas.search import SearchRequest
 from app.services.embeddings.openai_provider import OpenAIEmbeddingProvider
 from app.services.chroma.client import get_chroma_collection
 from app.services.chroma.repository import search_similar
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -29,8 +32,10 @@ class VectorSearchResult:
 
 @rt.function_node
 async def embed_query_node(request: SearchRequest) -> EmbedResult:
+    logger.info("Embedding search query", query=request.query, top_k=request.top_k)
     embedder = OpenAIEmbeddingProvider()
     vector = await embedder.embed_text(request.query)
+    logger.debug("Search query embedded", query=request.query, vector_dimension=len(vector))
     return EmbedResult(
         query=request.query,
         vector=vector,
@@ -41,6 +46,12 @@ async def embed_query_node(request: SearchRequest) -> EmbedResult:
 
 @rt.function_node
 async def vector_search_node(embed_result: EmbedResult) -> VectorSearchResult:
+    logger.info(
+        "Vector search starting",
+        query=embed_result.query,
+        top_k=embed_result.top_k,
+        file_id=embed_result.file_id,
+    )
     collection = get_chroma_collection()
     hits_raw = await search_similar(
         collection,
@@ -49,6 +60,12 @@ async def vector_search_node(embed_result: EmbedResult) -> VectorSearchResult:
         file_id=embed_result.file_id,
     )
     hits = [VectorHit(vector_id=h["id"], score=h["score"]) for h in hits_raw]
+    logger.info(
+        "Vector search complete",
+        query=embed_result.query,
+        hits=len(hits),
+        top_score=round(hits[0].score, 4) if hits else None,
+    )
     return VectorSearchResult(
         query=embed_result.query,
         hits=hits,

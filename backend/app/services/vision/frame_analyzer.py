@@ -2,7 +2,6 @@ import asyncio
 import base64
 import io
 import json
-import logging
 import re
 import string
 from dataclasses import dataclass
@@ -11,8 +10,9 @@ from openai import AsyncOpenAI
 from PIL import Image, ImageChops, ImageStat
 
 from app.core.config import get_settings
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 BATCH_SIZE = 8
 FRAME_CAP = 60
@@ -45,16 +45,25 @@ class FrameAnalyzer:
             timestamps.append(t)
             t += interval
 
+        logger.info(
+            "Extracting frames",
+            file_path=file_path,
+            duration_seconds=round(duration, 2),
+            interval_seconds=round(interval, 2),
+            candidate_frames=len(timestamps),
+        )
+
         # Extract frames and deduplicate
         survivors: list[tuple[float, str]] = []
         prev_img: Image.Image | None = None
+        duplicates = 0
 
         for ts in timestamps:
             frame = clip.get_frame(ts)
             img = Image.fromarray(frame)
 
             if self._is_duplicate(img, prev_img):
-                logger.debug("Skipping duplicate frame at %.1fs", ts)
+                duplicates += 1
                 continue
 
             prev_img = img
@@ -66,9 +75,10 @@ class FrameAnalyzer:
         clip.close()
 
         logger.info(
-            "Frame analysis: %d timestamps, %d unique frames after dedup",
-            len(timestamps),
-            len(survivors),
+            "Frame deduplication complete",
+            candidate_frames=len(timestamps),
+            unique_frames=len(survivors),
+            duplicates_skipped=duplicates,
         )
 
         # Batch frames and send to API
@@ -76,8 +86,17 @@ class FrameAnalyzer:
         for i in range(0, len(survivors), BATCH_SIZE):
             batches.append(survivors[i : i + BATCH_SIZE])
 
+        logger.info(
+            "Sending frames to vision model",
+            model=self._model,
+            total_frames=len(survivors),
+            total_batches=len(batches),
+            batch_size=BATCH_SIZE,
+        )
+
         async def _analyze_batch(
             batch: list[tuple[float, str]],
+            batch_num: int,
         ) -> list[FrameDescription]:
             labels = list(string.ascii_uppercase[: len(batch)])
             content: list[dict] = []
@@ -107,6 +126,12 @@ class FrameAnalyzer:
                     }
                 )
 
+            logger.debug(
+                "Vision API request",
+                batch=f"{batch_num}/{len(batches)}",
+                frames_in_batch=len(batch),
+                timestamps=[round(ts, 1) for ts, _ in batch],
+            )
             async with self._semaphore:
                 response = await self._client.chat.completions.create(
                     model=self._model,
@@ -116,19 +141,36 @@ class FrameAnalyzer:
                 )
 
             raw = response.choices[0].message.content or ""
-            return self._parse_batch_response(raw, batch, labels)
+            results = self._parse_batch_response(raw, batch, labels)
+            logger.debug(
+                "Vision API response parsed",
+                batch=f"{batch_num}/{len(batches)}",
+                descriptions_returned=len(results),
+            )
+            return results
 
-        tasks = [_analyze_batch(b) for b in batches]
+        tasks = [_analyze_batch(b, i + 1) for i, b in enumerate(batches)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         descriptions: list[FrameDescription] = []
+        failed_batches = 0
         for r in results:
             if isinstance(r, list):
                 descriptions.extend(r)
             elif isinstance(r, Exception):
-                logger.warning("Batch analysis failed: %s", r)
+                failed_batches += 1
+                logger.warning(
+                    "Vision batch analysis failed",
+                    error=str(r),
+                    error_type=type(r).__name__,
+                )
 
         descriptions.sort(key=lambda d: d.timestamp)
+        logger.info(
+            "Frame analysis finished",
+            total_descriptions=len(descriptions),
+            failed_batches=failed_batches,
+        )
         return descriptions
 
     @staticmethod
@@ -171,7 +213,7 @@ class FrameAnalyzer:
             pass
 
         # Fallback: regex split on "Frame X" markers
-        logger.warning("JSON parse failed, falling back to regex splitting")
+        logger.warning("Vision JSON parse failed, falling back to regex splitting")
         results = []
         for match in re.finditer(
             r"Frame\s+([A-H])[\s:]+(.+?)(?=Frame\s+[A-H]|\Z)",

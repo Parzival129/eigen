@@ -12,8 +12,10 @@ from app.services.chroma.client import get_chroma_collection
 from app.services.chroma.repository import delete_file_vectors
 from app.utils.file_utils import delete_local_file
 from app.workers.tasks import dispatch_process_file
+from app.core.logging import get_logger
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.get("/files", response_model=list[FileListItem])
@@ -75,6 +77,7 @@ async def get_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 @router.delete("/files/{file_id}", response_model=SuccessResponse)
 async def delete_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    logger.info("File deletion requested", file_id=str(file_id))
     file = await db.get(FileModel, file_id)
     if not file:
         raise HTTPException(404, "File not found")
@@ -84,20 +87,29 @@ async def delete_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     vector_ids = [row[0] for row in result.all()]
 
     # Delete from ChromaDB
+    logger.info("Deleting vectors from ChromaDB", file_id=str(file_id), vector_count=len(vector_ids))
     await delete_file_vectors(get_chroma_collection(), str(file_id), vector_ids)
 
     # Delete local file
+    logger.info("Deleting local file", file_id=str(file_id), storage_path=file.storage_path)
     delete_local_file(file.storage_path)
 
     # Delete DB record (cascades to chunks and jobs)
     await db.delete(file)
     await db.commit()
 
+    logger.info(
+        "File deleted",
+        file_id=str(file_id),
+        filename=file.original_filename,
+        vectors_removed=len(vector_ids),
+    )
     return SuccessResponse(message=f"File {file_id} deleted successfully")
 
 
 @router.post("/files/{file_id}/reindex")
 async def reindex_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    logger.info("Reindex requested", file_id=str(file_id))
     file = await db.get(FileModel, file_id)
     if not file:
         raise HTTPException(404, "File not found")
@@ -106,6 +118,12 @@ async def reindex_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(ChunkModel.vector_id).where(ChunkModel.file_id == file_id))
     vector_ids = [row[0] for row in result.all()]
 
+    logger.info(
+        "Clearing existing data for reindex",
+        file_id=str(file_id),
+        filename=file.original_filename,
+        existing_vectors=len(vector_ids),
+    )
     await delete_file_vectors(get_chroma_collection(), str(file_id), vector_ids)
 
     # Delete chunks from DB
@@ -123,6 +141,12 @@ async def reindex_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     file.status = FileStatus.pending
     await db.commit()
 
+    logger.info(
+        "Reindex job dispatched",
+        file_id=str(file_id),
+        job_id=str(job.id),
+        filename=file.original_filename,
+    )
     dispatch_process_file(str(file_id), str(job.id))
 
     return {"job_id": str(job.id)}

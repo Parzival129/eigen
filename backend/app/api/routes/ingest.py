@@ -10,8 +10,10 @@ from app.utils.file_utils import save_upload_file, get_file_extension
 from app.core.config import get_settings
 from app.core.security import sanitize_filename
 from app.workers.tasks import dispatch_process_file
+from app.core.logging import get_logger
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.post("/ingest/upload", response_model=UploadResponse)
@@ -22,9 +24,21 @@ async def upload_file(
     db: AsyncSession = Depends(get_db),
 ):
     settings = get_settings()
+    logger.info(
+        "Upload received",
+        filename=file.filename,
+        content_type=file.content_type,
+    )
     path, size = await save_upload_file(file, settings.upload_dir, settings.max_file_size_bytes)
     ext = get_file_extension(file.filename or "")
     sanitized = sanitize_filename(file.filename or "upload")
+    logger.info(
+        "File saved to disk",
+        filename=file.filename,
+        file_type=ext,
+        size_bytes=size,
+        storage_path=path,
+    )
 
     file_record = FileModel(
         id=uuid.uuid4(),
@@ -46,6 +60,12 @@ async def upload_file(
     await db.commit()
 
     # Dispatch background task
+    logger.info(
+        "Dispatching ingestion job",
+        file_id=str(file_record.id),
+        job_id=str(job.id),
+        filename=file.filename,
+    )
     dispatch_process_file(str(file_record.id), str(job.id))
 
     return UploadResponse(

@@ -43,6 +43,14 @@ class IngestionService:
         if not job or not file:
             raise ValueError(f"Job {job_id} or File {file_id} not found")
 
+        logger.info(
+            "Ingestion started",
+            file_id=str(file_id),
+            job_id=str(job_id),
+            filename=file.original_filename,
+            file_type=file.file_type,
+            file_size=file.file_size,
+        )
         job.status = "started"
         job.started_at = datetime.now(timezone.utc)
         file.status = FileStatus.processing
@@ -51,8 +59,20 @@ class IngestionService:
         try:
             # Parse
             parser = _get_parser(file.file_type)
+            logger.info(
+                "Parsing file",
+                file_id=str(file_id),
+                parser=type(parser).__name__,
+                storage_path=file.storage_path,
+            )
             parsed = await parser.parse(file.storage_path)
-            logger.info("Parsed file", file_id=str(file_id), parsed_sections=len(parsed))
+            total_chars = sum(len(p.text) for p in parsed)
+            logger.info(
+                "Parsing complete",
+                file_id=str(file_id),
+                parsed_sections=len(parsed),
+                total_characters=total_chars,
+            )
 
             if not parsed:
                 logger.warning(
@@ -62,8 +82,16 @@ class IngestionService:
                 )
 
             # Chunk
+            logger.info("Chunking parsed content", file_id=str(file_id), input_sections=len(parsed))
             chunks = chunk_parsed_content(parsed)
-            logger.info("Chunked", file_id=str(file_id), chunk_count=len(chunks))
+            total_tokens = sum(c.token_count for c in chunks)
+            logger.info(
+                "Chunking complete",
+                file_id=str(file_id),
+                chunk_count=len(chunks),
+                total_tokens=total_tokens,
+                avg_tokens_per_chunk=round(total_tokens / len(chunks)) if chunks else 0,
+            )
 
             if not chunks:
                 logger.warning("No chunks produced, skipping indexing", file_id=str(file_id))
@@ -76,12 +104,30 @@ class IngestionService:
 
             # Embed
             texts = [c.text for c in chunks]
+            logger.info(
+                "Generating embeddings",
+                file_id=str(file_id),
+                chunk_count=len(texts),
+                total_tokens=total_tokens,
+            )
             embeddings = await self.embedder.embed_batch(texts)
+            logger.info(
+                "Embeddings complete",
+                file_id=str(file_id),
+                embeddings_generated=len(embeddings),
+                embedding_dimension=len(embeddings[0]) if embeddings else 0,
+            )
 
             # Store in ChromaDB
+            logger.info(
+                "Indexing chunks into ChromaDB",
+                file_id=str(file_id),
+                chunk_count=len(chunks),
+            )
             await index_chunks(get_chroma_collection(), str(file_id), file.file_type, chunks, embeddings)
 
             # Store chunks in DB
+            logger.info("Storing chunks in database", file_id=str(file_id), chunk_count=len(chunks))
             chunk_models = []
             for chunk, embedding in zip(chunks, embeddings):
                 vector_id = f"{file_id}:{chunk.chunk_index}"
@@ -107,10 +153,26 @@ class IngestionService:
             job.status = "completed"
             job.completed_at = datetime.now(timezone.utc)
             await self.db.commit()
-            logger.info("Ingestion complete", file_id=str(file_id), total_chunks=len(chunks))
+
+            elapsed = (job.completed_at - job.started_at).total_seconds()
+            logger.info(
+                "Ingestion complete",
+                file_id=str(file_id),
+                filename=file.original_filename,
+                total_chunks=len(chunks),
+                total_tokens=total_tokens,
+                elapsed_seconds=round(elapsed, 2),
+            )
 
         except Exception as e:
-            logger.error("Ingestion failed", file_id=str(file_id), error=str(e))
+            logger.error(
+                "Ingestion failed",
+                file_id=str(file_id),
+                filename=file.original_filename,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             file.status = FileStatus.failed
             file.error_message = str(e)[:2048]
             job.status = "failed"

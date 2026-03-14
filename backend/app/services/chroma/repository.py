@@ -53,6 +53,7 @@ async def search_similar(
     if file_id:
         kwargs["where"] = {"file_id": file_id}
 
+    logger.debug("ChromaDB query", top_k=top_k, file_id=file_id)
     result = await asyncio.to_thread(collection.query, **kwargs)
 
     hits = []
@@ -61,4 +62,5 @@ async def search_similar(
     for vid, dist in zip(ids, distances):
         # ChromaDB cosine distance: 0 = identical, 2 = opposite → convert to similarity
         hits.append({"id": vid, "score": 1.0 - dist})
+    logger.debug("ChromaDB query returned", hits=len(hits))
     return hits
