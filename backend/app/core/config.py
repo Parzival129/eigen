@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     moorcheh_api_key: str
     moorcheh_namespace: str = "educational-content"
-    allowed_origins: str = "http://localhost:3000"
+    allowed_origins: str = "http://localhost:3000,http://localhost:5173"
     max_file_size_mb: int = 100
     upload_dir: str = "./uploads"
     log_level: str = "INFO"

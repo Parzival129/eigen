@@ -7,7 +7,7 @@ import SearchBar from './components/search/SearchBar'
 import ResultsList from './components/search/ResultsList'
 import { useAnnotations } from './hooks/useAnnotations'
 import { useViewerState } from './hooks/useViewerState'
-import { searchDocuments } from './api/mockApi'
+import { uploadFile, searchDocuments, deleteFile, pollJobUntilDone } from './api/client'
 import type { UploadedFile, SearchResult } from './types'
 import { FileSearch, BookOpen } from 'lucide-react'
 
@@ -57,32 +57,49 @@ export default function App() {
   }, [])
 
   const handleFilesAdded = useCallback(async (newFiles: File[]) => {
-    const tempFiles: UploadedFile[] = newFiles.map((f) => ({
-      id: crypto.randomUUID(),
-      name: f.name,
-      type: f.name.toLowerCase().endsWith('.pdf')
-        ? 'pdf'
+    for (const f of newFiles) {
+      const tempId = crypto.randomUUID()
+      const fileType = f.name.toLowerCase().endsWith('.pdf')
+        ? 'pdf' as const
         : f.name.toLowerCase().endsWith('.epub')
-        ? 'epub'
-        : 'txt',
-      size: f.size,
-      status: 'uploading',
-      file: f,
-    }))
-    setFiles((prev) => [...prev, ...tempFiles])
+        ? 'epub' as const
+        : 'txt' as const
 
-    // Simulate indexing delay
-    setTimeout(() => {
-      setFiles((prev) =>
-        prev.map((pf) =>
-          tempFiles.find((t) => t.id === pf.id) ? { ...pf, status: 'indexed' } : pf
+      const tempFile: UploadedFile = {
+        id: tempId,
+        name: f.name,
+        type: fileType,
+        size: f.size,
+        status: 'uploading',
+        file: f,
+      }
+      setFiles((prev) => [...prev, tempFile])
+
+      try {
+        const res = await uploadFile(f)
+        // Replace temp ID with real file_id from backend
+        setFiles((prev) =>
+          prev.map((pf) => (pf.id === tempId ? { ...pf, id: res.file_id } : pf))
         )
-      )
-    }, 1500 + Math.random() * 1000)
+
+        // Poll job status in background
+        pollJobUntilDone(res.job_id).then((job) => {
+          const newStatus = job.status === 'completed' ? 'indexed' as const : 'error' as const
+          setFiles((prev) =>
+            prev.map((pf) => (pf.id === res.file_id ? { ...pf, status: newStatus } : pf))
+          )
+        })
+      } catch {
+        setFiles((prev) =>
+          prev.map((pf) => (pf.id === tempId ? { ...pf, status: 'error' } : pf))
+        )
+      }
+    }
   }, [])
 
   const handleFileRemove = useCallback(
     (fileId: string) => {
+      deleteFile(fileId).catch(() => {})
       setFiles((prev) => prev.filter((f) => f.id !== fileId))
       annHook.clearAnnotationsForFile(fileId)
       if (viewer.state.activeFileId === fileId) {
@@ -108,11 +125,7 @@ export default function App() {
       setIsSearching(true)
       setHasSearched(true)
       try {
-        const scopeIds = scopeFileId ? [scopeFileId] : []
-        const indexedFiles = files
-          .filter((f) => f.status === 'indexed')
-          .map((f) => ({ id: f.id, name: f.name, type: f.type }))
-        const results = await searchDocuments(query, scopeIds, indexedFiles)
+        const results = await searchDocuments(query, undefined, scopeFileId ?? undefined)
         setSearchResults(results)
       } finally {
         setIsSearching(false)

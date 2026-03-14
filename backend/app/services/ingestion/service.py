@@ -59,6 +59,15 @@ class IngestionService:
             chunks = chunk_parsed_content(parsed)
             logger.info("Chunked", file_id=str(file_id), chunk_count=len(chunks))
 
+            if not chunks:
+                logger.warning("No chunks produced, skipping indexing", file_id=str(file_id))
+                file.status = FileStatus.completed
+                file.total_chunks = 0
+                job.status = "completed"
+                job.completed_at = datetime.now(timezone.utc)
+                await self.db.commit()
+                return
+
             # Embed
             texts = [c.text for c in chunks]
             embeddings = await self.embedder.embed_batch(texts)
