@@ -32,6 +32,7 @@ interface PopoverState {
   y: number
   selectedText: string
   selectionStart?: number
+  selectionEnd?: number
 }
 
 function ToolBtn({
@@ -116,19 +117,58 @@ export default function TXTViewer({
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     const sel = window.getSelection()
-    if (!sel || sel.isCollapsed) {
+    if (!sel || sel.isCollapsed || !contentRef.current) {
       setPopover((p) => ({ ...p, visible: false }))
       return
     }
     const text = sel.toString().trim()
     if (!text) return
+    let charStart: number | undefined
+    let charEnd: number | undefined
+    try {
+      const range = sel.getRangeAt(0)
+      const contentEl = contentRef.current.querySelector('.prose-viewer') ?? contentRef.current
+      const preRange = document.createRange()
+      preRange.selectNodeContents(contentEl)
+      preRange.setEnd(range.startContainer, range.startOffset)
+      charStart = preRange.toString().length
+      preRange.setEnd(range.endContainer, range.endOffset)
+      charEnd = preRange.toString().length
+    } catch {
+      // fallback: no position
+    }
     setPopover({
       visible: true,
       x: e.clientX,
       y: e.clientY,
       selectedText: text,
+      selectionStart: charStart,
+      selectionEnd: charEnd,
     })
   }, [])
+
+  const annotationsForFile = annotations.filter((a) => a.fileId === fileId)
+
+  const matchingHighlightId: string | null =
+    popover.selectionStart != null && popover.selectionEnd != null
+      ? annotationsForFile.find(
+          (a) =>
+            a.type === 'highlight' &&
+            a.charStart != null &&
+            a.charEnd != null &&
+            a.charStart <= popover.selectionEnd! &&
+            a.charEnd >= popover.selectionStart!
+        )?.id ?? null
+      : null
+
+  const handleRemoveHighlight = useCallback(
+    (id: string) => {
+      onRemoveAnnotation(id)
+      setPopover((p) => ({ ...p, visible: false }))
+      window.getSelection()?.removeAllRanges()
+    },
+    [onRemoveAnnotation]
+  )
 
   const handleHighlight = useCallback(() => {
     if (!popover.selectedText) return
@@ -137,6 +177,11 @@ export default function TXTViewer({
       type: 'highlight',
       color: 'var(--color-accent-warn)',
       text: popover.selectedText,
+      ...(popover.selectionStart != null &&
+        popover.selectionEnd != null && {
+          charStart: popover.selectionStart,
+          charEnd: popover.selectionEnd,
+        }),
     })
     setPopover((p) => ({ ...p, visible: false }))
     window.getSelection()?.removeAllRanges()
@@ -154,6 +199,11 @@ export default function TXTViewer({
       color: 'var(--color-accent-info)',
       text: popover.selectedText,
       comment: noteInput,
+      ...(popover.selectionStart != null &&
+        popover.selectionEnd != null && {
+          charStart: popover.selectionStart,
+          charEnd: popover.selectionEnd,
+        }),
     })
     setPopover((p) => ({ ...p, visible: false }))
     setShowNoteInput(false)
@@ -175,29 +225,73 @@ export default function TXTViewer({
   }, [file])
 
   const renderContent = () => {
-    if (!searchHighlight?.chunkText) {
-      return <span>{content}</span>
+    const userHighlights = annotationsForFile.filter((a) => a.type === 'highlight')
+    const ranges: { start: number; end: number; isSearch: boolean }[] = []
+
+    if (searchHighlight?.chunkText) {
+      const idx = content.indexOf(searchHighlight.chunkText)
+      if (idx !== -1) {
+        ranges.push({ start: idx, end: idx + searchHighlight.chunkText.length, isSearch: true })
+      }
     }
-    const idx = content.indexOf(searchHighlight.chunkText)
-    if (idx === -1) return <span>{content}</span>
-    return (
-      <>
-        <span>{content.slice(0, idx)}</span>
+    for (const ann of userHighlights) {
+      if (!ann.text) continue
+      if (ann.charStart != null && ann.charEnd != null) {
+        ranges.push({
+          start: Math.max(0, Math.min(ann.charStart, content.length)),
+          end: Math.min(content.length, Math.max(ann.charEnd, 0)),
+          isSearch: false,
+        })
+      } else {
+        let pos = 0
+        while (true) {
+          const idx = content.indexOf(ann.text, pos)
+          if (idx === -1) break
+          ranges.push({ start: idx, end: idx + ann.text.length, isSearch: false })
+          pos = idx + 1
+        }
+      }
+    }
+    if (ranges.length === 0) return <span>{content}</span>
+
+    ranges.sort((a, b) => a.start - b.start)
+    const merged: { start: number; end: number; isSearch: boolean }[] = []
+    for (const r of ranges) {
+      const last = merged[merged.length - 1]
+      if (last && r.start <= last.end) {
+        last.end = Math.max(last.end, r.end)
+        last.isSearch = last.isSearch || r.isSearch
+      } else {
+        merged.push({ ...r })
+      }
+    }
+
+    const segments: React.ReactNode[] = []
+    let pos = 0
+    for (const r of merged) {
+      if (r.start > pos) {
+        segments.push(<span key={`t-${pos}`}>{content.slice(pos, r.start)}</span>)
+      }
+      segments.push(
         <mark
+          key={`h-${r.start}`}
+          className={r.isSearch ? 'highlight-search' : 'highlight-user'}
           style={{
-            background: 'rgba(124, 158, 135, 0.35)',
             borderRadius: 3,
             padding: '1px 0',
+            background: r.isSearch ? undefined : 'rgba(232, 201, 122, 0.55)',
           }}
         >
-          {content.slice(idx, idx + searchHighlight.chunkText.length)}
+          {content.slice(r.start, r.end)}
         </mark>
-        <span>{content.slice(idx + searchHighlight.chunkText.length)}</span>
-      </>
-    )
+      )
+      pos = r.end
+    }
+    if (pos < content.length) {
+      segments.push(<span key={`t-${pos}`}>{content.slice(pos)}</span>)
+    }
+    return <>{segments}</>
   }
-
-  const annotationsForFile = annotations.filter((a) => a.fileId === fileId)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -318,6 +412,8 @@ export default function TXTViewer({
           x={popover.x}
           y={popover.y}
           onHighlight={handleHighlight}
+          onRemoveHighlight={handleRemoveHighlight}
+          matchingHighlightId={matchingHighlightId}
           onAddNote={handleAddNote}
           onCopy={handleCopy}
           onClose={() => setPopover((p) => ({ ...p, visible: false }))}

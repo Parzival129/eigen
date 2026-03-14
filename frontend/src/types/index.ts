@@ -31,6 +31,12 @@ export interface Annotation {
   text: string
   comment?: string
   createdAt: string
+  /** Character start offset in the document (for TXT) */
+  charStart?: number
+  /** Character end offset in the document (for TXT) */
+  charEnd?: number
+  /** Highlight overlay rects relative to page (for PDF) */
+  highlightRects?: Array<{ left: number; top: number; width: number; height: number }>
 }
 
 export interface SearchResult {
