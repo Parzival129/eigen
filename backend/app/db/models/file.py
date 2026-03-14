@@ -2,7 +2,7 @@ import uuid
 import enum
 from sqlalchemy import String, Integer, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Uuid
 from app.db.base import Base, TimestampMixin
 
 
@@ -23,7 +23,7 @@ class FileType(str, enum.Enum):
 class File(Base, TimestampMixin):
     __tablename__ = "files"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     original_filename: Mapped[str] = mapped_column(String(512), nullable=False)
     sanitized_filename: Mapped[str] = mapped_column(String(512), nullable=False)
     file_type: Mapped[str] = mapped_column(String(10), nullable=False)

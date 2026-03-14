@@ -1,41 +1,33 @@
 import asyncio
 import uuid
-from celery import Task
-from celery.utils.log import get_task_logger
-from app.workers.celery_app import celery_app
+import structlog
 
-logger = get_task_logger(__name__)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from app.core.config import get_settings
+from app.services.ingestion.service import IngestionService
+
+logger = structlog.get_logger(__name__)
+
+# Track running background tasks so they aren't garbage-collected
+_background_tasks: set[asyncio.Task] = set()
 
 
-class BaseTask(Task):
-    abstract = True
-
-
-@celery_app.task(
-    bind=True,
-    base=BaseTask,
-    name="process_file",
-    max_retries=3,
-    default_retry_delay=60,
-)
-def process_file_task(self, file_id: str, job_id: str):
-    async def _run():
-        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-        from app.core.config import get_settings
-        from app.services.ingestion.service import IngestionService
-
-        settings = get_settings()
-        engine = create_async_engine(settings.database_url, echo=False)
-        factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-        async with factory() as session:
-            service = IngestionService(session)
-            await service.process_file(uuid.UUID(file_id), uuid.UUID(job_id))
-
-        await engine.dispose()
+async def _run_ingestion(file_id: str, job_id: str) -> None:
+    from app.db.session import engine, AsyncSessionLocal
 
     try:
-        asyncio.run(_run())
-    except Exception as exc:
-        logger.error(f"Task failed: {exc}")
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries * 30)
+        async with AsyncSessionLocal() as session:
+            service = IngestionService(session)
+            await service.process_file(uuid.UUID(file_id), uuid.UUID(job_id))
+    except Exception:
+        logger.exception("Background ingestion failed", file_id=file_id, job_id=job_id)
+
+
+def dispatch_process_file(file_id: str, job_id: str) -> None:
+    """Fire-and-forget async ingestion task."""
+    task = asyncio.get_event_loop().create_task(
+        _run_ingestion(file_id, job_id),
+        name=f"ingest-{file_id}",
+    )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)

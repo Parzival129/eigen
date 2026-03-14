@@ -9,7 +9,7 @@ from app.schemas.ingest import UploadResponse, JobStatusResponse
 from app.utils.file_utils import save_upload_file, get_file_extension
 from app.core.config import get_settings
 from app.core.security import sanitize_filename
-from app.workers.tasks import process_file_task
+from app.workers.tasks import dispatch_process_file
 
 router = APIRouter()
 
@@ -45,10 +45,8 @@ async def upload_file(
     db.add(job)
     await db.commit()
 
-    # Dispatch Celery task
-    task = process_file_task.delay(str(file_record.id), str(job.id))
-    job.celery_task_id = task.id
-    await db.commit()
+    # Dispatch background task
+    dispatch_process_file(str(file_record.id), str(job.id))
 
     return UploadResponse(
         file_id=file_record.id,

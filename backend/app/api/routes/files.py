@@ -11,7 +11,7 @@ from app.schemas.common import SuccessResponse
 from app.services.moorcheh.client import get_moorcheh_client
 from app.services.moorcheh.repository import delete_file_vectors
 from app.utils.file_utils import delete_local_file
-from app.workers.tasks import process_file_task
+from app.workers.tasks import dispatch_process_file
 
 router = APIRouter()
 
@@ -125,8 +125,6 @@ async def reindex_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     file.status = FileStatus.pending
     await db.commit()
 
-    task = process_file_task.delay(str(file_id), str(job.id))
-    job.celery_task_id = task.id
-    await db.commit()
+    dispatch_process_file(str(file_id), str(job.id))
 
     return {"job_id": str(job.id)}

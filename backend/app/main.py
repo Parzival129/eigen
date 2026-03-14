@@ -6,6 +6,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import structlog
 
+import os
 from app.core.config import get_settings
 from app.core.logging import setup_logging, get_logger
 from app.api.dependencies import limiter
@@ -18,6 +19,17 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Ensure upload directory exists
+    os.makedirs(settings.upload_dir, exist_ok=True)
+
+    # Auto-create tables (safe for both SQLite and PostgreSQL)
+    from app.db.base import Base
+    from app.db.models import File, Chunk, IngestionJob  # noqa: F401
+    from app.db.session import engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     logger.info("Starting up GenAI backend")
     yield
     logger.info("Shutting down GenAI backend")

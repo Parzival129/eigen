@@ -53,7 +53,7 @@ async def search_similar(
 ) -> list[dict]:
     settings = get_settings()
     namespace = settings.moorcheh_namespace
-    response = await client.search.query(
+    response = await client.similarity_search.query(
         namespaces=[namespace],
         query=query_vector,
         top_k=top_k,
