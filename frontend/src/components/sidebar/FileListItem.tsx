@@ -21,7 +21,7 @@ function FileIcon({ type }: { type: UploadedFile['type'] }) {
   return <FileText size={16} color="#A8C4D4" style={style} />
 }
 
-function StatusBadge({ status }: { status: UploadedFile['status'] }) {
+function StatusBadge({ status, errorMessage }: { status: UploadedFile['status']; errorMessage?: string }) {
   const base: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -51,7 +51,10 @@ function StatusBadge({ status }: { status: UploadedFile['status'] }) {
     )
   }
   return (
-    <span style={{ ...base, background: '#fde8e8', color: '#a33' }}>
+    <span
+      style={{ ...base, background: '#fde8e8', color: '#a33' }}
+      title={errorMessage}
+    >
       <AlertCircle size={9} />
       Error
     </span>
@@ -109,8 +112,23 @@ export default function FileListItem({ file, isActive, onClick, onRemove }: File
           }}
         >
           <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{formatSize(file.size)}</span>
-          <StatusBadge status={file.status} />
+          <StatusBadge status={file.status} errorMessage={file.errorMessage} />
         </div>
+        {file.status === 'error' && file.errorMessage && (
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 11,
+              color: '#a33',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={file.errorMessage}
+          >
+            {file.errorMessage}
+          </div>
+        )}
       </div>
 
       <button

@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     moorcheh_api_key: str
     moorcheh_namespace: str = "educational-content"
     allowed_origins: str = "http://localhost:3000,http://localhost:5173"
-    max_file_size_mb: int = 100
+    max_file_size_mb: int = 2048
+    embedding_max_input_tokens: int = 8000
     upload_dir: str = "./uploads"
     log_level: str = "INFO"
 

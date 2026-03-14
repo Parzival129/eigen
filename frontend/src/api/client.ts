@@ -48,7 +48,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, init)
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    throw new Error(`API ${res.status}: ${body}`)
+    let message = body
+    try {
+      const parsed = JSON.parse(body) as { detail?: unknown }
+      if (typeof parsed.detail === 'string') {
+        message = parsed.detail
+      }
+    } catch {
+      // Keep original response body if it's not JSON
+    }
+    throw new Error(`API ${res.status}: ${message}`)
   }
   return res.json()
 }

@@ -7,10 +7,7 @@ import SelectionPopover from './SelectionPopover'
 import AnnotationPanel from './AnnotationPanel'
 import PDFToolbar from './PDFToolbar'
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString()
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 interface PDFViewerProps {
   file: File

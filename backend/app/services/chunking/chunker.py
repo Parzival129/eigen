@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from app.services.parsing.base import ParsedChunk
-from app.utils.text_utils import count_tokens, clean_text
+from app.utils.text_utils import count_tokens, clean_text, split_text_by_tokens
 
 TARGET_TOKENS = 512
 OVERLAP_TOKENS = 50
@@ -23,6 +23,10 @@ class Chunk:
 def _split_sentences(text: str) -> list[str]:
     parts = re.split(r"(?<=[.!?])\s+", text)
     return [p.strip() for p in parts if p.strip()]
+
+
+def _split_to_target_windows(text: str) -> list[str]:
+    return split_text_by_tokens(text, TARGET_TOKENS, overlap_tokens=0)
 
 
 def chunk_parsed_content(parsed_chunks: list[ParsedChunk]) -> list[Chunk]:
@@ -67,33 +71,38 @@ def chunk_parsed_content(parsed_chunks: list[ParsedChunk]) -> list[Chunk]:
         sentences = _split_sentences(pc.text)
         meta = meta_from(pc)
         for sentence in sentences:
-            s_tokens = count_tokens(sentence)
-            if current_tokens + s_tokens > TARGET_TOKENS and current_sentences:
-                # compute overlap: take last N sentences fitting OVERLAP_TOKENS
-                overlap: list[str] = []
-                overlap_t = 0
-                for s in reversed(current_sentences):
-                    st = count_tokens(s)
-                    if overlap_t + st <= OVERLAP_TOKENS:
-                        overlap.insert(0, s)
-                        overlap_t += st
-                    else:
-                        break
-                flush(overlap)
-                # After flush, set meta to current parsed chunk since we're starting fresh
-                current_meta = meta
-                current_meta_sentence_count = 0
-                sentences_from_current_meta = 0
+            sentence_parts = [sentence]
+            if count_tokens(sentence) > TARGET_TOKENS:
+                sentence_parts = _split_to_target_windows(sentence)
 
-            current_sentences.append(sentence)
-            current_tokens += s_tokens
-            current_meta_sentence_count += 1
+            for sentence_part in sentence_parts:
+                s_tokens = count_tokens(sentence_part)
+                if current_tokens + s_tokens > TARGET_TOKENS and current_sentences:
+                    # compute overlap: take last N sentences fitting OVERLAP_TOKENS
+                    overlap: list[str] = []
+                    overlap_t = 0
+                    for s in reversed(current_sentences):
+                        st = count_tokens(s)
+                        if overlap_t + st <= OVERLAP_TOKENS:
+                            overlap.insert(0, s)
+                            overlap_t += st
+                        else:
+                            break
+                    flush(overlap)
+                    # After flush, set meta to current parsed chunk since we're starting fresh
+                    current_meta = meta
+                    current_meta_sentence_count = 0
+                    sentences_from_current_meta = 0
 
-            # The dominant meta is from the ParsedChunk with the most sentences contributed
-            # to the current window. Update if this ParsedChunk now has more.
-            if sentences_from_current_meta == 0 or current_meta_sentence_count > sentences_from_current_meta:
-                current_meta = meta
-                sentences_from_current_meta = current_meta_sentence_count
+                current_sentences.append(sentence_part)
+                current_tokens += s_tokens
+                current_meta_sentence_count += 1
+
+                # The dominant meta is from the ParsedChunk with the most sentences contributed
+                # to the current window. Update if this ParsedChunk now has more.
+                if sentences_from_current_meta == 0 or current_meta_sentence_count > sentences_from_current_meta:
+                    current_meta = meta
+                    sentences_from_current_meta = current_meta_sentence_count
 
     # flush remaining
     flush([])

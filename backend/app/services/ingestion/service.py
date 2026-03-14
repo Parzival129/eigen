@@ -55,6 +55,13 @@ class IngestionService:
             parsed = await parser.parse(file.storage_path)
             logger.info("Parsed file", file_id=str(file_id), parsed_sections=len(parsed))
 
+            if not parsed:
+                logger.warning(
+                    "Parser returned 0 sections — file may be empty or unsupported format",
+                    file_id=str(file_id),
+                    file_type=file.file_type,
+                )
+
             # Chunk
             chunks = chunk_parsed_content(parsed)
             logger.info("Chunked", file_id=str(file_id), chunk_count=len(chunks))

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import TopNav from './components/TopNav'
 import FileManager from './components/sidebar/FileManager'
 import PDFViewer from './components/viewer/PDFViewer'
+import EPUBViewer from './components/viewer/EPUBViewer'
 import TXTViewer from './components/viewer/TXTViewer'
 import SearchBar from './components/search/SearchBar'
 import ResultsList from './components/search/ResultsList'
@@ -79,19 +80,34 @@ export default function App() {
         const res = await uploadFile(f)
         // Replace temp ID with real file_id from backend
         setFiles((prev) =>
-          prev.map((pf) => (pf.id === tempId ? { ...pf, id: res.file_id } : pf))
+          prev.map((pf) => (pf.id === tempId ? { ...pf, id: res.file_id, errorMessage: undefined } : pf))
         )
 
         // Poll job status in background
         pollJobUntilDone(res.job_id).then((job) => {
           const newStatus = job.status === 'completed' ? 'indexed' as const : 'error' as const
           setFiles((prev) =>
-            prev.map((pf) => (pf.id === res.file_id ? { ...pf, status: newStatus } : pf))
+            prev.map((pf) =>
+              pf.id === res.file_id
+                ? { ...pf, status: newStatus, errorMessage: job.error_message ?? undefined }
+                : pf
+            )
           )
         })
-      } catch {
+      } catch (error) {
+        const message = error instanceof Error
+          ? error.message.replace(/^API \d+:\s*/, '')
+          : 'Upload failed'
         setFiles((prev) =>
-          prev.map((pf) => (pf.id === tempId ? { ...pf, status: 'error' } : pf))
+          prev.map((pf) =>
+            pf.id === tempId
+              ? {
+                  ...pf,
+                  status: 'error',
+                  errorMessage: message,
+                }
+              : pf
+          )
         )
       }
     }
@@ -226,6 +242,20 @@ export default function App() {
                 onToggleHighlight={viewer.toggleHighlightTool}
                 onToggleComment={viewer.toggleCommentTool}
                 onFindChange={viewer.setFindQuery}
+                onToggleFullscreen={viewer.toggleFullscreen}
+                onToggleAnnotationsPanel={viewer.toggleAnnotationsPanel}
+              />
+            ) : activeFile.type === 'epub' ? (
+              <EPUBViewer
+                key={activeFile.id}
+                file={activeFile.file}
+                fileId={activeFile.id}
+                viewerState={viewer.state}
+                annotations={annHook.annotations}
+                searchHighlight={activeSearchHighlight?.fileId === activeFile.id ? activeSearchHighlight : null}
+                onStateUpdate={viewer.update}
+                onAddAnnotation={annHook.addAnnotation}
+                onRemoveAnnotation={annHook.removeAnnotation}
                 onToggleFullscreen={viewer.toggleFullscreen}
                 onToggleAnnotationsPanel={viewer.toggleAnnotationsPanel}
               />

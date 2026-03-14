@@ -8,6 +8,7 @@ export interface UploadedFile {
   type: FileType
   size: number
   status: FileStatus
+  errorMessage?: string
   file: File
   objectUrl?: string
 }
