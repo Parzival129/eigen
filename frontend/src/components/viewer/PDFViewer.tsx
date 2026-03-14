@@ -68,13 +68,9 @@ export default function PDFViewer({
   const [pageHeights, setPageHeights] = useState<Map<number, number>>(new Map())
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const observerRef = useRef<IntersectionObserver | null>(null)
-  const fileUrl = useRef<string>(URL.createObjectURL(file))
-
-  useEffect(() => {
-    const url = URL.createObjectURL(file)
-    fileUrl.current = url
-    return () => URL.revokeObjectURL(url)
-  }, [file])
+  const fileUrl = useRef<string>(
+    `${import.meta.env.VITE_API_URL ?? ''}/api/v1/files/${fileId}/content`
+  )
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>

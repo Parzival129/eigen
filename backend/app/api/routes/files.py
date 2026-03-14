@@ -1,5 +1,7 @@
 import uuid
+import os
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse as FastFileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.session import get_db
@@ -33,6 +35,20 @@ async def list_files(db: AsyncSession = Depends(get_db)):
         )
         for f in files
     ]
+
+
+@router.get("/files/{file_id}/content")
+async def serve_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    file = await db.get(FileModel, file_id)
+    if not file:
+        raise HTTPException(404, "File not found")
+    if not os.path.exists(file.storage_path):
+        raise HTTPException(404, "File not found on disk")
+    return FastFileResponse(
+        path=file.storage_path,
+        filename=file.original_filename,
+        media_type="application/octet-stream",
+    )
 
 
 @router.get("/files/{file_id}", response_model=FileDetail)

@@ -1,12 +1,22 @@
 import { Sparkles } from 'lucide-react'
+import katex from 'katex'
 
-function renderBold(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*)/)
-  return parts.map((part, i) =>
-    part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i}>{part.slice(2, -2)}</strong>
-      : part
-  )
+function renderMarkup(text: string): React.ReactNode[] {
+  const parts = text.split(/(\$\$[^$]+\$\$|\$[^$\n]+\$|\*\*[^*]+\*\*)/)
+  return parts.map((part, i) => {
+    if (part.startsWith('$$') && part.endsWith('$$')) {
+      const html = katex.renderToString(part.slice(2, -2), { displayMode: true, throwOnError: false })
+      return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
+    }
+    if (part.startsWith('$') && part.endsWith('$')) {
+      const html = katex.renderToString(part.slice(1, -1), { displayMode: false, throwOnError: false })
+      return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
+    }
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>
+    }
+    return part
+  })
 }
 
 interface SummaryPanelProps {
@@ -93,7 +103,7 @@ export default function SummaryPanel({ summary, isLoading, onGenerate, hasResult
           </button>
         </div>
         <p style={{ fontSize: 13, color: 'var(--color-text-primary)', margin: 0, lineHeight: 1.5 }}>
-          {renderBold(summary)}
+          {renderMarkup(summary)}
         </p>
       </div>
     )

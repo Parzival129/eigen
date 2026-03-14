@@ -18,7 +18,7 @@ export default function QuizPanel({ quiz, isLoading, onGenerate, hasResults }: Q
   if (isLoading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {[1, 2, 3, 4, 5].map((i) => (
+        {[1].map((i) => (
           <div
             key={i}
             style={{
