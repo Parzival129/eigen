@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -64,6 +64,10 @@ export default function PDFViewer({
   const [noteInput, setNoteInput] = useState('')
   const [showNoteInput, setShowNoteInput] = useState(false)
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
+  const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([1, 2, 3]))
+  const [pageHeights, setPageHeights] = useState<Map<number, number>>(new Map())
+  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+  const observerRef = useRef<IntersectionObserver | null>(null)
   const fileUrl = useRef<string>(URL.createObjectURL(file))
 
   useEffect(() => {
@@ -73,22 +77,97 @@ export default function PDFViewer({
   }, [file])
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
     const obs = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width - 48)
-      }
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        for (const entry of entries) {
+          setContainerWidth(entry.contentRect.width - 48)
+        }
+      }, 150)
     })
     if (containerRef.current) obs.observe(containerRef.current)
-    return () => obs.disconnect()
+    return () => {
+      clearTimeout(timer)
+      obs.disconnect()
+    }
+  }, [])
+
+  // IntersectionObserver for page virtualization
+  useEffect(() => {
+    if (!containerRef.current || numPages === 0) return
+    observerRef.current?.disconnect()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setVisiblePages((prev) => {
+          const next = new Set(prev)
+          for (const entry of entries) {
+            const pageNum = Number(entry.target.getAttribute('data-page'))
+            if (entry.isIntersecting) {
+              next.add(pageNum)
+            } else {
+              next.delete(pageNum)
+            }
+          }
+          if (next.size === prev.size && [...next].every((p) => prev.has(p))) return prev
+          return next
+        })
+        // Update current page based on most visible entry
+        const intersecting = entries.filter((e) => e.isIntersecting)
+        if (intersecting.length > 0) {
+          const best = intersecting.reduce((a, b) =>
+            b.intersectionRatio > a.intersectionRatio ? b : a
+          )
+          const pageNum = Number(best.target.getAttribute('data-page'))
+          if (pageNum) onPageChange(pageNum)
+        }
+      },
+      { root: containerRef.current, rootMargin: '1500px 0px' }
+    )
+    observerRef.current = observer
+    pageRefs.current.forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [numPages, onPageChange])
+
+  // Register a page element with the observer
+  const setPageRef = useCallback((pageNum: number, el: HTMLDivElement | null) => {
+    if (el) {
+      pageRefs.current.set(pageNum, el)
+      observerRef.current?.observe(el)
+    } else {
+      const prev = pageRefs.current.get(pageNum)
+      if (prev) observerRef.current?.unobserve(prev)
+      pageRefs.current.delete(pageNum)
+    }
+  }, [])
+
+  const handlePageRenderSuccess = useCallback((pageNum: number) => {
+    const el = pageRefs.current.get(pageNum)
+    if (el) {
+      setPageHeights((prev) => {
+        if (prev.get(pageNum) === el.offsetHeight) return prev
+        const next = new Map(prev)
+        next.set(pageNum, el.offsetHeight)
+        return next
+      })
+    }
   }, [])
 
   useEffect(() => {
     if (searchHighlight?.pageNumber) {
+      // Force-add page to visible set so it renders before scrolling
+      setVisiblePages((prev) => {
+        if (prev.has(searchHighlight.pageNumber!)) return prev
+        const next = new Set(prev)
+        next.add(searchHighlight.pageNumber!)
+        return next
+      })
       onPageChange(searchHighlight.pageNumber)
-      const el = document.getElementById(`pdf-page-${searchHighlight.pageNumber}`)
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
+      // Small delay to allow render before scroll
+      setTimeout(() => {
+        const el = document.getElementById(`pdf-page-${searchHighlight.pageNumber}`)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 50)
     }
   }, [searchHighlight])
 
@@ -192,7 +271,19 @@ export default function PDFViewer({
     a.click()
   }, [file])
 
-  const annotationsForFile = annotations.filter((a) => a.fileId === fileId)
+  const annotationsForFile = useMemo(() => annotations.filter((a) => a.fileId === fileId), [annotations, fileId])
+
+  const annotationsByPage = useMemo(() => {
+    const map = new Map<number, Annotation[]>()
+    for (const a of annotationsForFile) {
+      if (a.pageNumber == null) continue
+      const arr = map.get(a.pageNumber)
+      if (arr) arr.push(a)
+      else map.set(a.pageNumber, [a])
+    }
+    return map
+  }, [annotationsForFile])
+
   const activeAnnotationPage = activeAnnotationId
     ? (annotationsForFile.find((a) => a.id === activeAnnotationId)?.pageNumber ?? null)
     : null
@@ -278,14 +369,36 @@ export default function PDFViewer({
           }
         >
           {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => {
+            const isVisible = visiblePages.has(pageNum)
             const isSearchPage = searchHighlight?.pageNumber === pageNum
-            const pageAnnotations = annotationsForFile.filter((a) => a.pageNumber === pageNum)
+            const pageAnnotations = annotationsByPage.get(pageNum) ?? []
             const pageHighlights = pageAnnotations.filter((a) => a.type === 'highlight')
             const pageNotes = pageAnnotations.filter((a) => a.type === 'note')
+            const placeholderHeight = pageHeights.get(pageNum) ?? Math.round((containerWidth * viewerState.zoom) * 1.414)
+
+            if (!isVisible) {
+              return (
+                <div
+                  key={pageNum}
+                  id={`pdf-page-${pageNum}`}
+                  data-page={pageNum}
+                  ref={(el) => setPageRef(pageNum, el)}
+                  style={{
+                    height: placeholderHeight,
+                    background: 'var(--color-bg-card)',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: 8,
+                  }}
+                />
+              )
+            }
+
             return (
               <div
                 key={pageNum}
                 id={`pdf-page-${pageNum}`}
+                data-page={pageNum}
+                ref={(el) => setPageRef(pageNum, el)}
                 className={activeAnnotationPage === pageNum ? 'pdf-page-wrapper annotation-flash' : 'pdf-page-wrapper'}
                 style={{
                   position: 'relative',
@@ -303,11 +416,12 @@ export default function PDFViewer({
                   rotate={viewerState.rotation}
                   renderTextLayer
                   renderAnnotationLayer
+                  onRenderSuccess={() => handlePageRenderSuccess(pageNum)}
                 />
 
                 {/* User highlight overlays */}
-                {annotationsForFile
-                  .filter((a) => a.pageNumber === pageNum && a.highlightRects && a.highlightRects.length > 0)
+                {pageAnnotations
+                  .filter((a) => a.highlightRects && a.highlightRects.length > 0)
                   .flatMap((ann) =>
                     (ann.highlightRects ?? []).map((rect, i) => (
                       <div
@@ -411,9 +525,17 @@ export default function PDFViewer({
           onClose={onToggleAnnotationsPanel}
           onAnnotationClick={(ann) => {
             if (!ann.pageNumber) return
+            setVisiblePages((prev) => {
+              if (prev.has(ann.pageNumber!)) return prev
+              const next = new Set(prev)
+              next.add(ann.pageNumber!)
+              return next
+            })
             onPageChange(ann.pageNumber)
-            const el = document.getElementById(`pdf-page-${ann.pageNumber}`)
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            setTimeout(() => {
+              const el = document.getElementById(`pdf-page-${ann.pageNumber}`)
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }, 50)
             setActiveAnnotationId(ann.id)
             setTimeout(() => setActiveAnnotationId(null), 3000)
           }}

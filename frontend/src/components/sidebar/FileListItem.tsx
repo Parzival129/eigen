@@ -21,7 +21,7 @@ function FileIcon({ type }: { type: UploadedFile['type'] }) {
   return <FileText size={16} color="#A8C4D4" style={style} />
 }
 
-function StatusBadge({ status, errorMessage }: { status: UploadedFile['status']; errorMessage?: string }) {
+function StatusBadge({ status, errorMessage, uploadProgress }: { status: UploadedFile['status']; errorMessage?: string; uploadProgress?: number }) {
   const base: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -35,10 +35,19 @@ function StatusBadge({ status, errorMessage }: { status: UploadedFile['status'];
   }
 
   if (status === 'uploading') {
+    const pct = uploadProgress != null ? Math.round(uploadProgress * 100) : 0
     return (
       <span style={{ ...base, background: 'var(--color-accent-info)', color: '#2a4a5e', opacity: 0.9 }}>
         <Loader2 size={9} style={{ animation: 'spin 1s linear infinite' }} />
-        Uploading
+        {pct}%
+      </span>
+    )
+  }
+  if (status === 'processing') {
+    return (
+      <span style={{ ...base, background: 'var(--color-accent-info)', color: '#2a4a5e', opacity: 0.9 }}>
+        <Loader2 size={9} style={{ animation: 'spin 1s linear infinite' }} />
+        Processing
       </span>
     )
   }
@@ -112,8 +121,29 @@ export default function FileListItem({ file, isActive, onClick, onRemove }: File
           }}
         >
           <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{formatSize(file.size)}</span>
-          <StatusBadge status={file.status} errorMessage={file.errorMessage} />
+          <StatusBadge status={file.status} errorMessage={file.errorMessage} uploadProgress={file.uploadProgress} />
         </div>
+        {file.status === 'uploading' && file.uploadProgress != null && (
+          <div
+            style={{
+              marginTop: 4,
+              height: 3,
+              borderRadius: 2,
+              background: 'var(--color-border)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${Math.round(file.uploadProgress * 100)}%`,
+                background: 'var(--color-accent-primary)',
+                borderRadius: 2,
+                transition: 'width 0.15s ease',
+              }}
+            />
+          </div>
+        )}
         {file.status === 'error' && file.errorMessage && (
           <div
             style={{

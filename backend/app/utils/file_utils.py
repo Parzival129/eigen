@@ -47,7 +47,7 @@ async def save_upload_file(upload_file: UploadFile, upload_dir: str, max_size: i
 
     total_size = 0
     async with aiofiles.open(dest_path, "wb") as f:
-        while chunk := await upload_file.read(1024 * 1024):  # 1MB chunks
+        while chunk := await upload_file.read(8 * 1024 * 1024):  # 8MB chunks
             total_size += len(chunk)
             if total_size > max_size:
                 await f.close()

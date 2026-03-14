@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Highlighter,
   MessageSquarePlus,
@@ -114,7 +114,7 @@ export default function TXTViewer({
     }
   }, [searchHighlight])
 
-  const wordCount = content.trim().split(/\s+/).filter(Boolean).length
+  const wordCount = useMemo(() => content.trim().split(/\s+/).filter(Boolean).length, [content])
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     const sel = window.getSelection()
@@ -148,7 +148,7 @@ export default function TXTViewer({
     })
   }, [])
 
-  const annotationsForFile = annotations.filter((a) => a.fileId === fileId)
+  const annotationsForFile = useMemo(() => annotations.filter((a) => a.fileId === fileId), [annotations, fileId])
 
   const matchingHighlightId: string | null =
     popover.selectionStart != null && popover.selectionEnd != null
@@ -232,7 +232,7 @@ export default function TXTViewer({
     setTimeout(() => setActiveAnnotationId(null), 3000)
   }, [])
 
-  const renderContent = () => {
+  const renderedContent = useMemo(() => {
     type Segment = { start: number; end: number; color: string; borderBottom?: string; key: string; annType?: string; isSearch?: boolean }
     const segments: Segment[] = []
 
@@ -298,7 +298,7 @@ export default function TXTViewer({
     }
     if (cursor < content.length) nodes.push(<span key={`plain-${cursor}`}>{content.slice(cursor)}</span>)
     return <>{nodes}</>
-  }
+  }, [content, searchHighlight, annotationsForFile, activeAnnotationId])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -381,7 +381,7 @@ export default function TXTViewer({
           </div>
         ) : (
           <div className="prose-viewer" style={{ fontSize: viewerState.txtFontSize }}>
-            {renderContent()}
+            {renderedContent}
           </div>
         )}
       </div>

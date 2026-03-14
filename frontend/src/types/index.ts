@@ -1,6 +1,6 @@
 export type FileType = 'pdf' | 'txt' | 'epub' | 'mp4'
 
-export type FileStatus = 'uploading' | 'indexed' | 'error'
+export type FileStatus = 'uploading' | 'processing' | 'indexed' | 'error'
 
 export interface UploadedFile {
   id: string
@@ -8,6 +8,7 @@ export interface UploadedFile {
   type: FileType
   size: number
   status: FileStatus
+  uploadProgress?: number
   errorMessage?: string
   file: File
   objectUrl?: string

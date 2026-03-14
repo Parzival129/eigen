@@ -64,12 +64,41 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
-export async function uploadFile(file: File): Promise<UploadResponse> {
-  const form = new FormData()
-  form.append('file', file)
-  return request<UploadResponse>('/api/v1/ingest/upload', {
-    method: 'POST',
-    body: form,
+export function uploadFile(
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<UploadResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${BASE_URL}/api/v1/ingest/upload`)
+
+    if (onProgress) {
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          onProgress(e.loaded / e.total)
+        }
+      })
+    }
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText))
+      } else {
+        let message = xhr.responseText
+        try {
+          const parsed = JSON.parse(xhr.responseText)
+          if (typeof parsed.detail === 'string') message = parsed.detail
+        } catch { /* keep raw */ }
+        reject(new Error(`API ${xhr.status}: ${message}`))
+      }
+    })
+
+    xhr.addEventListener('error', () => reject(new Error('Network error during upload')))
+    xhr.addEventListener('abort', () => reject(new Error('Upload aborted')))
+
+    const form = new FormData()
+    form.append('file', file)
+    xhr.send(form)
   })
 }
 

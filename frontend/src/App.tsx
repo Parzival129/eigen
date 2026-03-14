@@ -58,7 +58,7 @@ export default function App() {
     }
   }, [])
 
-  const handleFilesAdded = useCallback(async (newFiles: File[]) => {
+  const handleFilesAdded = useCallback((newFiles: File[]) => {
     for (const f of newFiles) {
       const tempId = crypto.randomUUID()
       const nameLower = f.name.toLowerCase()
@@ -76,44 +76,51 @@ export default function App() {
         type: fileType,
         size: f.size,
         status: 'uploading',
+        uploadProgress: 0,
         file: f,
       }
       setFiles((prev) => [...prev, tempFile])
 
-      try {
-        const res = await uploadFile(f)
-        // Replace temp ID with real file_id from backend
+      // Upload each file concurrently (no await in loop)
+      uploadFile(f, (progress) => {
         setFiles((prev) =>
-          prev.map((pf) => (pf.id === tempId ? { ...pf, id: res.file_id, errorMessage: undefined } : pf))
+          prev.map((pf) => (pf.id === tempId ? { ...pf, uploadProgress: progress } : pf))
         )
-
-        // Poll job status in background
-        pollJobUntilDone(res.job_id).then((job) => {
-          const newStatus = job.status === 'completed' ? 'indexed' as const : 'error' as const
+      })
+        .then((res) => {
+          // Replace temp ID with real file_id, mark as processing
           setFiles((prev) =>
             prev.map((pf) =>
-              pf.id === res.file_id
-                ? { ...pf, status: newStatus, errorMessage: job.error_message ?? undefined }
+              pf.id === tempId
+                ? { ...pf, id: res.file_id, status: 'processing', uploadProgress: 1, errorMessage: undefined }
+                : pf
+            )
+          )
+
+          // Poll job status in background
+          pollJobUntilDone(res.job_id).then((job) => {
+            const newStatus = job.status === 'completed' ? 'indexed' as const : 'error' as const
+            setFiles((prev) =>
+              prev.map((pf) =>
+                pf.id === res.file_id
+                  ? { ...pf, status: newStatus, errorMessage: job.error_message ?? undefined }
+                  : pf
+              )
+            )
+          })
+        })
+        .catch((error) => {
+          const message = error instanceof Error
+            ? error.message.replace(/^API \d+:\s*/, '')
+            : 'Upload failed'
+          setFiles((prev) =>
+            prev.map((pf) =>
+              pf.id === tempId
+                ? { ...pf, status: 'error', errorMessage: message }
                 : pf
             )
           )
         })
-      } catch (error) {
-        const message = error instanceof Error
-          ? error.message.replace(/^API \d+:\s*/, '')
-          : 'Upload failed'
-        setFiles((prev) =>
-          prev.map((pf) =>
-            pf.id === tempId
-              ? {
-                  ...pf,
-                  status: 'error',
-                  errorMessage: message,
-                }
-              : pf
-          )
-        )
-      }
     }
   }, [])
 
