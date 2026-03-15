@@ -67,8 +67,18 @@ async def generate_summary(query: str, chunks: list[ChunkContext]) -> str:
 
 async def generate_quiz(query: str, chunks: list[ChunkContext]) -> QuizResponse:
     formatted = _format_chunks(chunks)
+
+    system_prompt = (
+        "You are an educational assessment creator. "
+        "When writing questions, options, and explanations:\n"
+        "- **Bold** important terms and key concepts using **double asterisks**.\n"
+        "- When presenting mathematical expressions, use LaTeX notation: "
+        "$...$ for inline math and $$...$$ for display math.\n"
+        "- Be precise and educational."
+    )
+
     prompt = (
-        f'You are an educational assessment creator. A student searched for: "{query}"\n\n'
+        f'A student searched for: "{query}"\n\n'
         f"Here are relevant passages from their documents:\n\n{formatted}\n\n"
         f'Generate 5 multiple-choice questions to test understanding of "{query}" based on the content above.\n'
         f"Each question must have exactly 4 answer options.\n\n"
@@ -90,6 +100,7 @@ async def generate_quiz(query: str, chunks: list[ChunkContext]) -> QuizResponse:
         model="gemini-2.5-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
             response_mime_type="application/json",
         ),
     )

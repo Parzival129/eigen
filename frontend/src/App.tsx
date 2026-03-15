@@ -82,6 +82,7 @@ export default function App() {
         status: 'uploading',
         uploadProgress: 0,
         file: f,
+        objectUrl: URL.createObjectURL(f),
       }
       setFiles((prev) => [...prev, tempFile])
 
@@ -130,6 +131,8 @@ export default function App() {
 
   const handleFileRemove = useCallback(
     (fileId: string) => {
+      const file = files.find((f) => f.id === fileId)
+      if (file?.objectUrl) URL.revokeObjectURL(file.objectUrl)
       deleteFile(fileId).catch(() => {})
       setFiles((prev) => prev.filter((f) => f.id !== fileId))
       annHook.clearAnnotationsForFile(fileId)
@@ -139,7 +142,7 @@ export default function App() {
       }
       setSearchResults((prev) => prev.filter((r) => r.fileId !== fileId))
     },
-    [viewer, annHook]
+    [viewer, annHook, files]
   )
 
   const handleFileSelect = useCallback(
@@ -202,6 +205,7 @@ export default function App() {
   )
 
   const handleNewSession = useCallback(() => {
+    files.forEach((f) => { if (f.objectUrl) URL.revokeObjectURL(f.objectUrl) })
     setFiles([])
     setSearchResults([])
     setHasSearched(false)
@@ -212,7 +216,7 @@ export default function App() {
     setQuiz(null)
     setLastSearchQuery('')
     viewer.setActiveFile(null)
-  }, [viewer])
+  }, [viewer, files])
 
   const activeFile = files.find((f) => f.id === viewer.state.activeFileId) ?? null
 
@@ -274,6 +278,7 @@ export default function App() {
                 key={activeFile.id}
                 file={activeFile.file}
                 fileId={activeFile.id}
+                objectUrl={activeFile.objectUrl}
                 viewerState={viewer.state}
                 annotations={annHook.annotations}
                 searchHighlight={activeSearchHighlight?.fileId === activeFile.id ? activeSearchHighlight : null}

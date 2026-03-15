@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { GraduationCap, CheckCircle, XCircle } from 'lucide-react'
 import type { QuizData } from '../../types'
+import { renderMarkup } from './renderMarkup'
 
 interface QuizPanelProps {
   quiz: QuizData | null
@@ -101,7 +102,7 @@ export default function QuizPanel({ quiz, isLoading, onGenerate, hasResults }: Q
             }}
           >
             <span style={{ fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
-              {currentQuestion + 1}. {quiz.questions[currentQuestion].question}
+              {currentQuestion + 1}. {renderMarkup(quiz.questions[currentQuestion].question)}
             </span>
             {quiz.questions[currentQuestion].options.map((opt, oi) => (
               <button
@@ -131,7 +132,7 @@ export default function QuizPanel({ quiz, isLoading, onGenerate, hasResults }: Q
                   e.currentTarget.style.background = 'var(--color-bg-base)'
                 }}
               >
-                {opt}
+                {renderMarkup(opt)}
               </button>
             ))}
           </div>
@@ -180,15 +181,15 @@ export default function QuizPanel({ quiz, isLoading, onGenerate, hasResults }: Q
                       ? <CheckCircle size={14} color="#22c55e" style={{ flexShrink: 0, marginTop: 1 }} />
                       : <XCircle size={14} color="#ef4444" style={{ flexShrink: 0, marginTop: 1 }} />}
                     <span style={{ fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
-                      {qi + 1}. {q.question}
+                      {qi + 1}. {renderMarkup(q.question)}
                     </span>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', paddingLeft: 20 }}>
-                    Your answer: <span style={{ color: isCorrect ? '#22c55e' : '#ef4444' }}>{q.options[userAnswer]}</span>
+                    Your answer: <span style={{ color: isCorrect ? '#22c55e' : '#ef4444' }}>{renderMarkup(q.options[userAnswer])}</span>
                   </div>
                   {!isCorrect && (
                     <div style={{ fontSize: 12, color: '#22c55e', paddingLeft: 20 }}>
-                      Correct: {q.options[q.correct_index]}
+                      Correct: {renderMarkup(q.options[q.correct_index])}
                     </div>
                   )}
                   <div
@@ -202,7 +203,7 @@ export default function QuizPanel({ quiz, isLoading, onGenerate, hasResults }: Q
                       lineHeight: 1.4,
                     }}
                   >
-                    {q.explanation}
+                    {renderMarkup(q.explanation)}
                   </div>
                 </div>
               )
