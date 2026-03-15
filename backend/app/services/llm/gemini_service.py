@@ -36,17 +36,31 @@ def _format_chunks(chunks: list[ChunkContext]) -> str:
 
 async def generate_summary(query: str, chunks: list[ChunkContext]) -> str:
     formatted = _format_chunks(chunks)
+
+    system_prompt = (
+        "You are a helpful educational assistant. "
+        "When writing summaries:\n"
+        "- **Bold** important information and key concepts using **double asterisks**.\n"
+        "- Reference the source passages using their numbers, e.g. [1], [2], [3].\n"
+        "- When presenting mathematical expressions, use LaTeX notation: "
+        "$...$ for inline math and $$...$$ for display math.\n"
+        "- Be educational and informative."
+    )
+
     prompt = (
-        f'You are a helpful educational assistant. A student searched for: "{query}"\n\n'
+        f'A student searched for: "{query}"\n\n'
         f"Here are the most relevant passages from their documents:\n\n{formatted}\n\n"
         f'Write a clear, concise summary (3-5 sentences) of what these passages say about "{query}". '
-        f"Draw on the provided context and your general knowledge. Be educational and informative."
+        f"Draw on the provided context and your general knowledge."
     )
 
     client = _get_client()
     response = await client.aio.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+        ),
     )
     return response.text or ""
 
