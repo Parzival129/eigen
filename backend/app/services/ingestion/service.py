@@ -5,7 +5,7 @@ from app.db.models.file import File, FileStatus
 from app.db.models.chunk import Chunk as ChunkModel
 from app.db.models.job import IngestionJob
 from app.services.embeddings.openai_provider import OpenAIEmbeddingProvider
-from app.services.chunking.chunker import chunk_parsed_content
+from app.services.chunking.chunker import chunk_parsed_content, VIDEO_TARGET_TOKENS
 from app.services.chroma.client import get_chroma_collection
 from app.services.chroma.repository import index_chunks
 from app.core.logging import get_logger
@@ -83,7 +83,8 @@ class IngestionService:
 
             # Chunk
             logger.info("Chunking parsed content", file_id=str(file_id), input_sections=len(parsed))
-            chunks = chunk_parsed_content(parsed)
+            target = VIDEO_TARGET_TOKENS if file.file_type == "mp4" else None
+            chunks = chunk_parsed_content(parsed) if target is None else chunk_parsed_content(parsed, target_tokens=target)
             total_tokens = sum(c.token_count for c in chunks)
             logger.info(
                 "Chunking complete",

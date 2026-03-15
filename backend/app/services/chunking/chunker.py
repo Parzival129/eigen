@@ -4,6 +4,7 @@ from app.services.parsing.base import ParsedChunk
 from app.utils.text_utils import count_tokens, clean_text, split_text_by_tokens
 
 TARGET_TOKENS = 512
+VIDEO_TARGET_TOKENS = 128
 OVERLAP_TOKENS = 50
 
 
@@ -25,11 +26,11 @@ def _split_sentences(text: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def _split_to_target_windows(text: str) -> list[str]:
-    return split_text_by_tokens(text, TARGET_TOKENS, overlap_tokens=0)
+def _split_to_target_windows(text: str, target: int = TARGET_TOKENS) -> list[str]:
+    return split_text_by_tokens(text, target, overlap_tokens=0)
 
 
-def chunk_parsed_content(parsed_chunks: list[ParsedChunk]) -> list[Chunk]:
+def chunk_parsed_content(parsed_chunks: list[ParsedChunk], target_tokens: int = TARGET_TOKENS) -> list[Chunk]:
     chunks: list[Chunk] = []
     current_sentences: list[str] = []
     current_tokens = 0
@@ -72,12 +73,12 @@ def chunk_parsed_content(parsed_chunks: list[ParsedChunk]) -> list[Chunk]:
         meta = meta_from(pc)
         for sentence in sentences:
             sentence_parts = [sentence]
-            if count_tokens(sentence) > TARGET_TOKENS:
-                sentence_parts = _split_to_target_windows(sentence)
+            if count_tokens(sentence) > target_tokens:
+                sentence_parts = _split_to_target_windows(sentence, target_tokens)
 
             for sentence_part in sentence_parts:
                 s_tokens = count_tokens(sentence_part)
-                if current_tokens + s_tokens > TARGET_TOKENS and current_sentences:
+                if current_tokens + s_tokens > target_tokens and current_sentences:
                     # compute overlap: take last N sentences fitting OVERLAP_TOKENS
                     overlap: list[str] = []
                     overlap_t = 0
