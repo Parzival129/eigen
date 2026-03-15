@@ -32,6 +32,7 @@ class File(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(20), default=FileStatus.pending, nullable=False)
     error_message: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     total_chunks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pdf_storage_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     chunks = relationship("Chunk", back_populates="file", cascade="all, delete-orphan")
     jobs = relationship("IngestionJob", back_populates="file", cascade="all, delete-orphan")

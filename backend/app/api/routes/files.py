@@ -1,5 +1,6 @@
 import uuid
 import os
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse as FastFileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,7 @@ from app.schemas.common import SuccessResponse
 from app.services.chroma.client import get_chroma_collection
 from app.services.chroma.repository import delete_file_vectors
 from app.utils.file_utils import delete_local_file
+from app.utils.epub_converter import convert_epub_to_pdf
 from app.workers.tasks import dispatch_process_file
 from app.core.logging import get_logger
 
@@ -44,6 +46,25 @@ async def serve_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "File not found")
     if not os.path.exists(file.storage_path):
         raise HTTPException(404, "File not found on disk")
+
+    # Serve converted PDF for EPUB files
+    if file.file_type == "epub":
+        # Lazy conversion fallback for EPUBs uploaded before this feature
+        if not file.pdf_storage_path or not os.path.exists(file.pdf_storage_path):
+            try:
+                pdf_path = await asyncio.to_thread(convert_epub_to_pdf, file.storage_path)
+                file.pdf_storage_path = pdf_path
+                await db.commit()
+            except Exception:
+                logger.warning("EPUB lazy conversion failed, serving raw file", file_id=str(file_id))
+
+        if file.pdf_storage_path and os.path.exists(file.pdf_storage_path):
+            return FastFileResponse(
+                path=file.pdf_storage_path,
+                filename=file.original_filename.rsplit(".", 1)[0] + ".pdf",
+                media_type="application/pdf",
+            )
+
     return FastFileResponse(
         path=file.storage_path,
         filename=file.original_filename,
@@ -106,9 +127,11 @@ async def delete_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     logger.info("Deleting vectors from ChromaDB", file_id=str(file_id), vector_count=len(vector_ids))
     await delete_file_vectors(get_chroma_collection(), str(file_id), vector_ids)
 
-    # Delete local file
+    # Delete local file(s)
     logger.info("Deleting local file", file_id=str(file_id), storage_path=file.storage_path)
     delete_local_file(file.storage_path)
+    if file.pdf_storage_path:
+        delete_local_file(file.pdf_storage_path)
 
     # Delete DB record (cascades to chunks and jobs)
     await db.delete(file)

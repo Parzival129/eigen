@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 from fastapi import APIRouter, UploadFile, File, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import limiter
@@ -7,6 +8,7 @@ from app.db.models.file import File as FileModel, FileStatus
 from app.db.models.job import IngestionJob
 from app.schemas.ingest import UploadResponse, JobStatusResponse
 from app.utils.file_utils import save_upload_file, get_file_extension
+from app.utils.epub_converter import convert_epub_to_pdf
 from app.core.config import get_settings
 from app.core.security import sanitize_filename
 from app.workers.tasks import dispatch_process_file
@@ -40,6 +42,14 @@ async def upload_file(
         storage_path=path,
     )
 
+    # Convert EPUB to PDF for viewing
+    pdf_path = None
+    if ext == "epub":
+        try:
+            pdf_path = await asyncio.to_thread(convert_epub_to_pdf, path)
+        except Exception as e:
+            logger.error("EPUB to PDF conversion failed", error=str(e), path=path)
+
     file_record = FileModel(
         id=uuid.uuid4(),
         original_filename=file.filename or "upload",
@@ -47,6 +57,7 @@ async def upload_file(
         file_type=ext,
         file_size=size,
         storage_path=path,
+        pdf_storage_path=pdf_path,
         status=FileStatus.pending,
     )
     db.add(file_record)

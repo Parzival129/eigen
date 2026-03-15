@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import TopNav from './components/TopNav'
 import FileManager from './components/sidebar/FileManager'
 import PDFViewer from './components/viewer/PDFViewer'
-import EPUBViewer from './components/viewer/EPUBViewer'
 import TXTViewer from './components/viewer/TXTViewer'
 import VideoViewer from './components/viewer/VideoViewer'
 import SearchBar from './components/search/SearchBar'
@@ -270,7 +269,7 @@ export default function App() {
           }}
         >
           {activeFile ? (
-            activeFile.type === 'pdf' ? (
+            activeFile.type === 'pdf' || activeFile.type === 'epub' ? (
               <PDFViewer
                 key={activeFile.id}
                 file={activeFile.file}
@@ -288,20 +287,6 @@ export default function App() {
                 onToggleHighlight={viewer.toggleHighlightTool}
                 onToggleComment={viewer.toggleCommentTool}
                 onFindChange={viewer.setFindQuery}
-                onToggleFullscreen={viewer.toggleFullscreen}
-                onToggleAnnotationsPanel={viewer.toggleAnnotationsPanel}
-              />
-            ) : activeFile.type === 'epub' ? (
-              <EPUBViewer
-                key={activeFile.id}
-                file={activeFile.file}
-                fileId={activeFile.id}
-                viewerState={viewer.state}
-                annotations={annHook.annotations}
-                searchHighlight={activeSearchHighlight?.fileId === activeFile.id ? activeSearchHighlight : null}
-                onStateUpdate={viewer.update}
-                onAddAnnotation={annHook.addAnnotation}
-                onRemoveAnnotation={annHook.removeAnnotation}
                 onToggleFullscreen={viewer.toggleFullscreen}
                 onToggleAnnotationsPanel={viewer.toggleAnnotationsPanel}
               />
