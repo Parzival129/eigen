@@ -1,23 +1,5 @@
 import { Sparkles } from 'lucide-react'
-import katex from 'katex'
-
-function renderMarkup(text: string): React.ReactNode[] {
-  const parts = text.split(/(\$\$[^$]+\$\$|\$[^$\n]+\$|\*\*[^*]+\*\*)/)
-  return parts.map((part, i) => {
-    if (part.startsWith('$$') && part.endsWith('$$')) {
-      const html = katex.renderToString(part.slice(2, -2), { displayMode: true, throwOnError: false })
-      return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
-    }
-    if (part.startsWith('$') && part.endsWith('$')) {
-      const html = katex.renderToString(part.slice(1, -1), { displayMode: false, throwOnError: false })
-      return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
-    }
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>
-    }
-    return part
-  })
-}
+import { renderMarkup } from './renderMarkup'
 
 interface SummaryPanelProps {
   summary: string | null
