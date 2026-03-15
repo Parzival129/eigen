@@ -37,7 +37,7 @@ function StatusBadge({ status, errorMessage, uploadProgress }: { status: Uploade
   if (status === 'uploading') {
     const pct = uploadProgress != null ? Math.round(uploadProgress * 100) : 0
     return (
-      <span style={{ ...base, background: 'var(--color-accent-info)', color: '#2a4a5e', opacity: 0.9 }}>
+      <span style={{ ...base, background: 'var(--color-badge-info-bg)', color: 'var(--color-badge-info-text)', opacity: 0.9 }}>
         <Loader2 size={9} style={{ animation: 'spin 1s linear infinite' }} />
         {pct}%
       </span>
@@ -45,7 +45,7 @@ function StatusBadge({ status, errorMessage, uploadProgress }: { status: Uploade
   }
   if (status === 'processing') {
     return (
-      <span style={{ ...base, background: 'var(--color-accent-info)', color: '#2a4a5e', opacity: 0.9 }}>
+      <span style={{ ...base, background: 'var(--color-badge-info-bg)', color: 'var(--color-badge-info-text)', opacity: 0.9 }}>
         <Loader2 size={9} style={{ animation: 'spin 1s linear infinite' }} />
         Processing
       </span>
@@ -53,7 +53,7 @@ function StatusBadge({ status, errorMessage, uploadProgress }: { status: Uploade
   }
   if (status === 'indexed') {
     return (
-      <span style={{ ...base, background: 'var(--color-accent-soft)', color: '#2a5038' }}>
+      <span style={{ ...base, background: 'var(--color-badge-success-bg)', color: 'var(--color-badge-success-text)' }}>
         <CheckCircle2 size={9} />
         Indexed
       </span>
@@ -61,7 +61,7 @@ function StatusBadge({ status, errorMessage, uploadProgress }: { status: Uploade
   }
   return (
     <span
-      style={{ ...base, background: '#fde8e8', color: '#a33' }}
+      style={{ ...base, background: 'var(--color-badge-error-bg)', color: 'var(--color-badge-error-text)' }}
       title={errorMessage}
     >
       <AlertCircle size={9} />
