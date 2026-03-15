@@ -141,4 +141,4 @@ npm run lint       # Runs ESLint
 
 ## Team
 
-Russell, Dinu, Samarvir, Harshit
+Russell Tabata, Dinu Dassanayake, Samarvir Garg, Harshit Jain
