@@ -3,58 +3,57 @@
 
 /* ── Light mode tokens ── */
 :root {
-  --color-bg-base:        #F7F3EE;
-  --color-bg-panel:       #FEFCF8;
-  --color-bg-card:        #F0EBE3;
-  --color-bg-toolbar:     #EDE8E0;
-  --color-border:         #DDD7CE;
+  --color-bg-base:        #FAFAFA;
+  --color-bg-panel:       #FFFFFF;
+  --color-bg-card:        #F4F4F5;
+  --color-bg-toolbar:     #F4F4F5;
+  --color-border:         #E4E4E7;
 
-  --color-accent-primary: #7C9E87;
-  --color-accent-soft:    #B8D4BE;
-  --color-accent-warn:    #E8C97A;
-  --color-accent-info:    #A8C4D4;
+  --color-accent-primary: #6366F1;
+  --color-accent-soft:    rgba(99, 102, 241, 0.1);
+  --color-accent-warn:    #F59E0B;
+  --color-accent-info:    #3B82F6;
 
-  --color-text-primary:   #2C2825;
-  --color-text-secondary: #6B635A;
-  --color-text-muted:     #9E9089;
+  --color-text-primary:   #18181B;
+  --color-text-secondary: #52525B;
+  --color-text-muted:     #A1A1AA;
 
-  --color-shadow:         rgba(100, 85, 70, 0.08);
+  --color-shadow:         rgba(0, 0, 0, 0.04);
 
-  --color-badge-success-bg:   #B8D4BE;
-  --color-badge-success-text: #2a5038;
-  --color-badge-info-bg:      #A8C4D4;
-  --color-badge-info-text:    #2a4a5e;
-  --color-badge-error-bg:     #fde8e8;
-  --color-badge-error-text:   #a33;
+  --color-badge-success-bg:   rgba(34, 197, 94, 0.1);
+  --color-badge-success-text: #16a34a;
+  --color-badge-info-bg:      rgba(59, 130, 246, 0.1);
+  --color-badge-info-text:    #2563eb;
+  --color-badge-error-bg:     rgba(239, 68, 68, 0.1);
+  --color-badge-error-text:   #dc2626;
 
-  --radius-sm:  6px;
-  --radius-md:  12px;
-  --radius-lg:  16px;
-  --radius-xl:  24px;
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
 }
 
 /* ── Dark mode overrides ── */
 .dark {
-  --color-bg-base:        #1A1714;
-  --color-bg-panel:       #211E1B;
-  --color-bg-card:        #2A2622;
-  --color-bg-toolbar:     #252220;
-  --color-border:         #3A3530;
-  --color-text-primary:   #F0EBE3;
-  --color-text-secondary: #A09880;
-  --color-text-muted:     #6B6358;
-  --color-shadow:         rgba(0, 0, 0, 0.25);
-  --color-accent-primary: #4a7a5a;
-  --color-accent-soft:    #3a5e47;
-  --color-accent-info:    #3a5a6e;
-  --color-text-muted:     #a09585;
+  --color-bg-base:        #09090B;
+  --color-bg-panel:       #18181B;
+  --color-bg-card:        #27272A;
+  --color-bg-toolbar:     #27272A;
+  --color-border:         #3F3F46;
+  --color-accent-primary: #818CF8;
+  --color-accent-soft:    rgba(129, 140, 248, 0.1);
+  --color-accent-info:    #60A5FA;
+  --color-text-primary:   #FAFAFA;
+  --color-text-secondary: #A1A1AA;
+  --color-text-muted:     #71717A;
+  --color-shadow:         rgba(0, 0, 0, 0.3);
 
-  --color-badge-success-bg:   #2e4a38;
-  --color-badge-success-text: #a8d4b0;
-  --color-badge-info-bg:      #2a3e4e;
-  --color-badge-info-text:    #a8c8dc;
-  --color-badge-error-bg:     #3e2222;
-  --color-badge-error-text:   #e8a0a0;
+  --color-badge-success-bg:   rgba(34, 197, 94, 0.15);
+  --color-badge-success-text: #4ade80;
+  --color-badge-info-bg:      rgba(59, 130, 246, 0.15);
+  --color-badge-info-text:    #93c5fd;
+  --color-badge-error-bg:     rgba(239, 68, 68, 0.15);
+  --color-badge-error-text:   #fca5a5;
 }
 
 * {
@@ -150,7 +149,7 @@ body {
   cursor: pointer;
 }
 .highlight-search {
-  background: rgba(124, 158, 135, 0.40);
+  background: rgba(99, 102, 241, 0.30);
   border-radius: 2px;
 }
 
@@ -195,16 +194,28 @@ body {
 
 /* ── Resizable divider ── */
 .panel-divider {
-  width: 4px;
+  width: 1px;
   background: var(--color-border);
-  border-radius: var(--radius-sm);
   cursor: col-resize;
   flex-shrink: 0;
   transition: background 0.15s;
   position: relative;
   z-index: 10;
 }
+.panel-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  right: -4px;
+}
 .panel-divider:hover,
 .panel-divider.dragging {
-  background: var(--color-accent-soft);
+  background: var(--color-accent-primary);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }

@@ -8,6 +8,7 @@ import SearchBar from './components/search/SearchBar'
 import ResultsList from './components/search/ResultsList'
 import { useAnnotations } from './hooks/useAnnotations'
 import { useViewerState } from './hooks/useViewerState'
+import { useDarkMode } from './hooks/useDarkMode'
 import { uploadFile, searchDocuments, deleteFile, pollJobUntilDone, generateSummary, generateQuiz } from './api/client'
 import type { UploadedFile, SearchResult, QuizData } from './types'
 import { FileSearch, BookOpen } from 'lucide-react'
@@ -17,7 +18,7 @@ const DEFAULT_LEFT_W = 240
 const DEFAULT_RIGHT_W = 320
 
 export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isDarkMode, toggleDarkMode] = useDarkMode()
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -36,11 +37,6 @@ export default function App() {
 
   const viewer = useViewerState()
   const annHook = useAnnotations()
-
-  // Apply dark mode class
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode)
-  }, [isDarkMode])
 
   // Resizable panels
   useEffect(() => {
@@ -232,7 +228,7 @@ export default function App() {
     >
       <TopNav
         isDarkMode={isDarkMode}
-        onToggleDarkMode={() => setIsDarkMode((d) => !d)}
+        onToggleDarkMode={toggleDarkMode}
         onNewSession={handleNewSession}
       />
 
@@ -278,7 +274,6 @@ export default function App() {
                 key={activeFile.id}
                 file={activeFile.file}
                 fileId={activeFile.id}
-                objectUrl={activeFile.objectUrl}
                 viewerState={viewer.state}
                 annotations={annHook.annotations}
                 searchHighlight={activeSearchHighlight?.fileId === activeFile.id ? activeSearchHighlight : null}
@@ -403,7 +398,8 @@ function EmptyViewer({ hasFiles }: { hasFiles: boolean }) {
         padding: 32,
         borderRadius: 'var(--radius-xl)',
         margin: 8,
-        border: '2px dashed var(--color-border)',
+        border: '1px dashed var(--color-border)',
+        animation: 'fade-in 0.4s ease',
       }}
     >
       <div

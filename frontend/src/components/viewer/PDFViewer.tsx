@@ -263,7 +263,7 @@ export default function PDFViewer({
   const handleDownload = useCallback(() => {
     const a = document.createElement('a')
     a.href = fileUrl.current
-    a.download = file.name
+    a.download = file.name.replace(/\.epub$/i, '.pdf')
     a.click()
   }, [file])
 

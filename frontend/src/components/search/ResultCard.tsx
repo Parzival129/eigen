@@ -10,7 +10,7 @@ interface ResultCardProps {
 
 function FileIcon({ type }: { type: SearchResult['fileType'] }) {
   if (type === 'pdf') return <FileType size={13} color="#E85C4A" />
-  if (type === 'epub') return <BookOpen size={13} color="#7C9E87" />
+  if (type === 'epub') return <BookOpen size={13} color="var(--color-accent-primary)" />
   if (type === 'mp4') return <Video size={13} color="#B07CC6" />
   return <FileText size={13} color="#A8C4D4" />
 }
@@ -58,7 +58,7 @@ export default function ResultCard({ result, rank, onOpen }: ResultCardProps) {
         border: '1px solid var(--color-border)',
         borderRadius: 'var(--radius-md)',
         padding: 12,
-        boxShadow: '0 1px 3px var(--color-shadow)',
+        animation: 'fade-in 0.3s ease',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,

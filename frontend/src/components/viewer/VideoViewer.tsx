@@ -53,7 +53,7 @@ export default function VideoViewer({
 }: VideoViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const pendingSeek = useRef<number | null>(null)
-  const fileUrl = useRef<string>(URL.createObjectURL(file))
+  const fileUrl = useRef<string>('')
 
   useEffect(() => {
     const url = URL.createObjectURL(file)
@@ -96,12 +96,12 @@ export default function VideoViewer({
         style={{
           background: 'var(--color-bg-toolbar)',
           borderBottom: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0',
+          borderRadius: 0,
           padding: '0 10px',
           display: 'flex',
           alignItems: 'center',
           gap: 4,
-          height: 46,
+          height: 42,
           flexShrink: 0,
         }}
       >
@@ -134,7 +134,6 @@ export default function VideoViewer({
           alignItems: 'center',
           justifyContent: 'center',
           background: '#000',
-          borderRadius: '0 0 var(--radius-xl) var(--radius-xl)',
           overflow: 'hidden',
         }}
       >

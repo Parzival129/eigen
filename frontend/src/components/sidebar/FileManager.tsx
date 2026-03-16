@@ -87,9 +87,9 @@ export default function FileManager({
         onClick={() => inputRef.current?.click()}
         style={{
           border: `2px dashed ${isDragging ? 'var(--color-accent-primary)' : 'var(--color-accent-soft)'}`,
-          borderRadius: 'var(--radius-xl)',
+          borderRadius: 'var(--radius-md)',
           background: isDragging ? 'var(--color-bg-panel)' : 'var(--color-bg-card)',
-          padding: '20px 16px',
+          padding: '14px 12px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',

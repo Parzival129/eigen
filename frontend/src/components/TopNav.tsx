@@ -1,4 +1,5 @@
 import { Moon, Sun, RotateCcw } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 interface TopNavProps {
   isDarkMode: boolean
@@ -12,19 +13,17 @@ export default function TopNav({ isDarkMode, onToggleDarkMode, onNewSession }: T
       style={{
         background: 'var(--color-bg-panel)',
         borderBottom: '1px solid var(--color-border)',
-        borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
-        height: 56,
+        height: 48,
         display: 'flex',
         alignItems: 'center',
         padding: '0 20px',
         gap: 12,
         flexShrink: 0,
         zIndex: 50,
-        boxShadow: '0 2px 8px var(--color-shadow)',
       }}
     >
       {/* Logo + Name */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+      <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
         <div
           style={{
             width: 40,
@@ -34,7 +33,7 @@ export default function TopNav({ isDarkMode, onToggleDarkMode, onNewSession }: T
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#7b8c6e',
+            background: 'var(--color-accent-primary)',
             userSelect: 'none',
           }}
         >
@@ -60,7 +59,7 @@ export default function TopNav({ isDarkMode, onToggleDarkMode, onNewSession }: T
         >
           Eigen
         </span>
-      </div>
+      </Link>
 
       {/* Right actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -73,10 +72,10 @@ export default function TopNav({ isDarkMode, onToggleDarkMode, onNewSession }: T
             background: 'transparent',
             border: '1px solid var(--color-border)',
             borderRadius: 'var(--radius-md)',
-            padding: '6px 14px',
+            padding: '5px 10px',
             color: 'var(--color-text-secondary)',
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 12,
             fontFamily: 'Inter, sans-serif',
             fontWeight: 500,
             transition: 'background 0.15s',

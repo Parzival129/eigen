@@ -56,7 +56,8 @@ async def serve_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
                 file.pdf_storage_path = pdf_path
                 await db.commit()
             except Exception:
-                logger.warning("EPUB lazy conversion failed, serving raw file", file_id=str(file_id))
+                logger.warning("EPUB lazy conversion failed", file_id=str(file_id))
+                raise HTTPException(500, "EPUB conversion failed")
 
         if file.pdf_storage_path and os.path.exists(file.pdf_storage_path):
             return FastFileResponse(
@@ -64,6 +65,8 @@ async def serve_file(file_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
                 filename=file.original_filename.rsplit(".", 1)[0] + ".pdf",
                 media_type="application/pdf",
             )
+
+        raise HTTPException(500, "EPUB conversion failed")
 
     return FastFileResponse(
         path=file.storage_path,

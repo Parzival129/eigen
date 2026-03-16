@@ -106,12 +106,12 @@ export default function PDFToolbar({
       style={{
         background: 'var(--color-bg-toolbar)',
         borderBottom: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0',
+        borderRadius: 0,
         padding: '0 10px',
         display: 'flex',
         alignItems: 'center',
         gap: 4,
-        height: 46,
+        height: 42,
         flexShrink: 0,
         overflowX: 'auto',
       }}

@@ -17,7 +17,7 @@ function formatSize(bytes: number): string {
 function FileIcon({ type }: { type: UploadedFile['type'] }) {
   const style = { flexShrink: 0 }
   if (type === 'pdf') return <FileType size={16} color="#E85C4A" style={style} />
-  if (type === 'epub') return <BookOpen size={16} color="#7C9E87" style={style} />
+  if (type === 'epub') return <BookOpen size={16} color="var(--color-accent-primary)" style={style} />
   return <FileText size={16} color="#A8C4D4" style={style} />
 }
 
@@ -85,7 +85,6 @@ export default function FileListItem({ file, isActive, onClick, onRemove }: File
         borderLeft: isActive ? '3px solid var(--color-accent-primary)' : '1px solid var(--color-border)',
         background: isActive ? 'var(--color-accent-soft)' : 'var(--color-bg-card)',
         transition: 'all 0.15s',
-        boxShadow: '0 1px 3px var(--color-shadow)',
         position: 'relative',
       }}
       onMouseEnter={(e) => {
