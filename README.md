@@ -4,6 +4,10 @@
 
 A semantic document search platform for educational content.
 
+## Demo
+
+[![Eigen Demo](https://img.youtube.com/vi/GHjUvJ2u45A/0.jpg)](https://www.youtube.com/watch?v=GHjUvJ2u45A&t=9s)
+
 ## What is Eigen?
 
 Eigen is a full-stack semantic search platform designed for educational content. It supports uploading and searching across multiple document formats — PDF, EPUB, video, images, and plain text. Documents are processed, chunked, and embedded using OpenAI embeddings, then stored in ChromaDB for fast vector similarity search. Google Gemini powers LLM features like AI-generated summaries and quizzes. The search pipeline is orchestrated by Railtracks, providing a clean, composable execution model.
