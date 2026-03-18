@@ -6,7 +6,13 @@ A semantic document search platform for educational content.
 
 ## Demo
 
-<video src="assets/Eigen_Demo.mp4" width="100%" controls></video>
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=GHjUvJ2u45A&t=9s">
+    <img src="https://img.youtube.com/vi/GHjUvJ2u45A/maxresdefault.jpg" width="100%" alt="Eigen Demo">
+    <br>
+    <img src="https://img.shields.io/badge/▶_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo">
+  </a>
+</div>
 
 ## What is Eigen?
 
